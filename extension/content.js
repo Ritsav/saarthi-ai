@@ -3,14 +3,6 @@ function detectCurrentPortal() {
     const parsed = new URL(window.location.href);
     const host = parsed.hostname;
 
-    if (/(^|\.)camis\.ocr\.gov\.np$/i.test(host)) {
-      return { key: 'camis_company', name: 'OCR CAMIS' };
-    }
-
-    if (/(^|\.)(taxpayerportal\.ird\.gov\.np|ird\.gov\.np)$/i.test(host)) {
-      return { key: 'ird_pan', name: 'IRD Taxpayer Portal' };
-    }
-
     if (/(^|\.)(nepalpassport\.gov\.np|epassport\.immigration\.gov\.np)$/i.test(host)) {
       return { key: 'nepal_passport', name: 'Nepal Passport Portal' };
     }

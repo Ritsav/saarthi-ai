@@ -210,7 +210,7 @@ async function attachGuessedPassportFiles(autofillPayload) {
   }
 
   const apiBaseUrl = await getApiBaseUrl();
-  const response = await fetch(`${apiBaseUrl}/api/document?process_type=PASSPORT_APPLICATION&limit=50&include_mock=true`, {
+  const response = await fetch(`${apiBaseUrl}/api/document?process_type=PASSPORT_APPLICATION&limit=50`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },

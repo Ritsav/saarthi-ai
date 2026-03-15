@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ExternalLink } from 'lucide-react';
-import { ASSISTANT_PROMPTS, COMMON_ERRORS, NEXT_STEP_TIMELINE, PASSPORT_STEPS, PORTAL_LINK } from '../data/passportDemo';
+import { ASSISTANT_PROMPTS, COMMON_ERRORS, NEXT_STEP_TIMELINE, PASSPORT_STEPS } from '../data/passportContent';
 import { useProcess } from '@/hooks/useProcess';
 import { AssistantResponseCard } from '@/components/passport/AssistantResponseCard';
 import { ProgressStepper } from '@/components/passport/ProgressStepper';
@@ -49,7 +49,7 @@ function buildStructuredAnswer(prompt: string) {
 
 export default function AssistantPage() {
   const [activePrompt, setActivePrompt] = useState(ASSISTANT_PROMPTS[0]);
-  const { requirements } = useProcess('PASSPORT_APPLICATION');
+  const { requirements, processInfo, portalUrl } = useProcess('PASSPORT_APPLICATION');
 
   const answer = useMemo(() => buildStructuredAnswer(activePrompt), [activePrompt]);
 
@@ -100,8 +100,10 @@ export default function AssistantPage() {
 
         <aside className="space-y-4">
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-900">Passport process summary</h2>
-            <p className="mt-2 text-sm text-slate-600">Focus only on individual Nepal passport preparation before official submission.</p>
+            <h2 className="text-sm font-semibold text-slate-900">{processInfo?.name || 'Process summary'}</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              {processInfo?.description || 'Backend-driven process details will appear here once available.'}
+            </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -128,7 +130,7 @@ export default function AssistantPage() {
             </ul>
           </div>
 
-          <OfficialPortalCard href={PORTAL_LINK} />
+          <OfficialPortalCard href={portalUrl || '#'} />
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between">
@@ -145,7 +147,11 @@ export default function AssistantPage() {
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-sm font-semibold text-slate-900">Quick portal access</p>
-            <Button variant="outline" className="mt-3 w-full rounded-xl" onClick={() => window.open(PORTAL_LINK, '_blank')}>
+            <Button
+              variant="outline"
+              className="mt-3 w-full rounded-xl"
+              onClick={() => window.open(portalUrl || '#', '_blank')}
+            >
               <ExternalLink className="mr-2 h-4 w-4" />
               Official portal
             </Button>

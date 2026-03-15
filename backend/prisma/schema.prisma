@@ -8,8 +8,6 @@ datasource db {
 }
 
 enum ProcessType {
-  COMPANY_REGISTRATION
-  PAN_REGISTRATION
   PASSPORT_APPLICATION
 }
 
@@ -29,8 +27,6 @@ enum ConsentType {
 enum DocumentType {
   CITIZENSHIP
   PASSPORT_PHOTO
-  COMPANY_MOA
-  PAN_CERTIFICATE
   BIRTH_CERTIFICATE
   UTILITY_BILL
   RENTAL_AGREEMENT
@@ -56,6 +52,7 @@ model User {
   chats     Chat[]
   documents Document[]
   consents  Consent[]
+  extension_exports ExtensionExport[]
 
   @@index([email])
   @@map("users")
@@ -135,4 +132,22 @@ model Consent {
   @@unique([user_id, consent_type])
   @@index([user_id])
   @@map("consents")
+}
+
+model ExtensionExport {
+  id           String      @id @default(uuid())
+  user_id      String
+  process_type ProcessType
+  portal_key   String
+  payload      Json
+  created_at   DateTime    @default(now())
+  updated_at   DateTime    @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, process_type, portal_key])
+  @@index([user_id])
+  @@index([process_type])
+  @@index([portal_key])
+  @@map("extension_exports")
 }

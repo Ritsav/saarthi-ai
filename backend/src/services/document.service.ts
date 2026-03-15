@@ -25,7 +25,6 @@ interface ListDocumentsInput {
   processType?: ProcessType;
   status?: DocumentStatus;
   chatId?: string;
-  includeMockFiles?: boolean;
 }
 
 function extractReadinessScore(value: Prisma.JsonValue | null): number | null {
@@ -99,7 +98,6 @@ export const documentService = {
       ...(input.processType ? { process_type: input.processType } : {}),
       ...(input.status ? { status: input.status } : {}),
       ...(input.chatId ? { chat_id: input.chatId } : {}),
-      ...(input.includeMockFiles ? {} : { file_path: { not: { startsWith: 'seed/' } } }),
     };
 
     const [total, documents] = await Promise.all([
@@ -117,6 +115,7 @@ export const documentService = {
           document_type: true,
           process_type: true,
           status: true,
+          processing_error: true,
           ocr_result: true,
           validation_result: true,
           created_at: true,
@@ -135,6 +134,7 @@ export const documentService = {
         document_type: document.document_type,
         process_type: document.process_type,
         status: document.status,
+        processing_error: document.processing_error,
         has_ocr_result: document.ocr_result !== null,
         readiness_score: extractReadinessScore(document.validation_result),
         created_at: document.created_at,

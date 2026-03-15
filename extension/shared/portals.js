@@ -1,15 +1,5 @@
 const PORTALS = [
   {
-    key: 'camis_company',
-    name: 'OCR CAMIS',
-    hostRegex: /(^|\.)camis\.ocr\.gov\.np$/i,
-  },
-  {
-    key: 'ird_pan',
-    name: 'IRD Taxpayer Portal',
-    hostRegex: /(^|\.)(taxpayerportal\.ird\.gov\.np|ird\.gov\.np)$/i,
-  },
-  {
     key: 'nepal_passport',
     name: 'Nepal Passport Portal',
     hostRegex: /(^|\.)(nepalpassport\.gov\.np|epassport\.immigration\.gov\.np)$/i,

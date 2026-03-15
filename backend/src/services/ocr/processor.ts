@@ -10,7 +10,6 @@ import { logger } from '../../utils/logger';
 const SUPPORTED_DOCUMENT_TYPES = new Set<DocumentType>([
   DocumentType.CITIZENSHIP,
   DocumentType.PASSPORT_PHOTO,
-  DocumentType.PAN_CERTIFICATE,
 ]);
 
 export const ocrProcessor = {

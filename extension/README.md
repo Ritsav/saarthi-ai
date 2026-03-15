@@ -19,9 +19,6 @@ This folder contains the Manifest V3 extension for portal auto-detect and form a
 
 1. Log in with backend credentials
 2. Open a supported portal tab:
-   - `https://camis.ocr.gov.np/*`
-   - `https://taxpayerportal.ird.gov.np/*`
-   - `https://ird.gov.np/*`
    - `https://nepalpassport.gov.np/*`
    - `https://epassport.immigration.gov.np/*`
 3. In popup, click **Fill Current Form**

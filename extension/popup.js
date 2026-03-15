@@ -103,7 +103,7 @@ function renderPortalDetails(detectorResult, statusData, autofillData) {
     portalSection.innerHTML = `
       <div class="stack">
         <strong>No Supported Portal Detected</strong>
-        <p class="hint">Open CAMIS, IRD, or Passport portal form page in the current tab.</p>
+        <p class="hint">Open Nepal Passport portal form page in the current tab.</p>
       </div>
     `;
     return;

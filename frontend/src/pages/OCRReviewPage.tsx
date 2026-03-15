@@ -12,7 +12,14 @@ export default function OCRReviewPage() {
   const { documents } = useDocuments();
   const { fields, setFieldValue, setFieldStatus, approveAll } = usePassportFormData();
 
-  const previewDoc = documents.find((doc) => doc.process_type === 'PASSPORT_APPLICATION');
+  const passportDocs = documents.filter(
+    (doc) =>
+      doc.process_type === 'PASSPORT_APPLICATION' &&
+      (doc.document_type === 'CITIZENSHIP' || doc.document_type === 'PASSPORT_PHOTO')
+  );
+  const previewDoc = passportDocs.find((doc) => doc.preview_url || doc.thumbnail_url) || passportDocs[0];
+  const previewUrl = previewDoc?.preview_url || previewDoc?.thumbnail_url;
+  const isPdfPreview = previewDoc?.file_type?.toLowerCase() === 'application/pdf';
 
   const summary = useMemo(() => {
     const confirmed = fields.filter((field) => field.status === 'confirmed').length;
@@ -33,8 +40,12 @@ export default function OCRReviewPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="mb-3 text-sm font-semibold text-slate-900">Document preview</h2>
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-            {previewDoc?.preview_url || previewDoc?.thumbnail_url ? (
-              <img src={previewDoc.preview_url || previewDoc.thumbnail_url} alt={previewDoc.file_name} className="h-[420px] w-full object-cover" />
+            {previewUrl ? (
+              isPdfPreview ? (
+                <iframe src={previewUrl} title={previewDoc?.file_name || 'Document preview'} className="h-[420px] w-full" />
+              ) : (
+                <img src={previewUrl} alt={previewDoc?.file_name || 'Document preview'} className="h-[420px] w-full object-cover" />
+              )
             ) : (
               <div className="flex h-[420px] items-center justify-center text-sm text-slate-500">
                 <FileText className="mr-2 h-4 w-4" />

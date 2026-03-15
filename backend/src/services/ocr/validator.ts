@@ -2,7 +2,6 @@ import { DocumentType } from '@prisma/client';
 import type {
   CitizenshipExtraction,
   ExtractedDocument,
-  PanCertificateExtraction,
   PassportPhotoExtraction,
 } from '../../schemas/extracted.schema';
 
@@ -22,8 +21,31 @@ function isNonEmpty(value: unknown): boolean {
 }
 
 function isValidDate(value: string): boolean {
-  const timestamp = Date.parse(value);
-  return Number.isFinite(timestamp);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split('-').map((item) => Number(item));
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+function parseIsoDate(value: string): Date | null {
+  if (!isValidDate(value)) {
+    return null;
+  }
+
+  const [year, month, day] = value.split('-').map((item) => Number(item));
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function citizenshipNumberHasEnoughDigits(value: string): boolean {
+  const digitsOnly = value.replace(/\D/g, '');
+  return digitsOnly.length >= 6;
 }
 
 function getFieldConfidence(extracted: ExtractedDocument, fieldName: string): number {
@@ -95,6 +117,28 @@ function validateCitizenship(extracted: CitizenshipExtraction): ValidationResult
 
   if (fields.issue_date && !isValidDate(fields.issue_date)) {
     invalid.push('issue_date');
+  }
+
+  if (fields.citizenship_number && !citizenshipNumberHasEnoughDigits(fields.citizenship_number)) {
+    invalid.push('citizenship_number');
+    suggestions.push('Citizenship number appears incomplete. Verify the full number.');
+  }
+
+  const dob = fields.date_of_birth ? parseIsoDate(fields.date_of_birth) : null;
+  const issueDate = fields.issue_date ? parseIsoDate(fields.issue_date) : null;
+  const today = new Date();
+
+  if (dob && dob.getTime() > today.getTime()) {
+    invalid.push('date_of_birth');
+  }
+
+  if (issueDate && issueDate.getTime() > today.getTime()) {
+    invalid.push('issue_date');
+  }
+
+  if (dob && issueDate && issueDate.getTime() < dob.getTime()) {
+    invalid.push('issue_date');
+    warnings.push('Issue date appears earlier than date of birth');
   }
 
   if (fields.photo_detected === false) {
@@ -197,58 +241,6 @@ function validatePassportPhoto(extracted: PassportPhotoExtraction): ValidationRe
   };
 }
 
-function validatePanCertificate(extracted: PanCertificateExtraction): ValidationResult {
-  const fields = extracted.fields;
-  const required = ['pan_number', 'registered_name'];
-  const recommended = ['business_type', 'registration_date', 'tax_office'];
-
-  const present = new Set<string>();
-  const missing: string[] = [];
-  const invalid: string[] = [];
-  const warnings: string[] = [];
-  const suggestions: string[] = [];
-
-  for (const field of [...required, ...recommended]) {
-    const value = fields[field as keyof typeof fields];
-    if (isNonEmpty(value)) {
-      present.add(field);
-    }
-  }
-
-  for (const field of required) {
-    if (!present.has(field)) {
-      missing.push(field);
-    }
-  }
-
-  if (fields.pan_number && !/^\d{9}$/.test(fields.pan_number)) {
-    invalid.push('pan_number');
-    suggestions.push('PAN number should be exactly 9 digits');
-  }
-
-  if (fields.registration_date && !isValidDate(fields.registration_date)) {
-    invalid.push('registration_date');
-  }
-
-  const lowConfidenceFields = collectLowConfidenceFields(extracted, [...required, ...recommended]);
-  if (lowConfidenceFields.length > 0) {
-    warnings.push('Some extracted fields have low confidence');
-  }
-
-  const readinessScore = calculateReadinessScore(required, recommended, present);
-
-  return {
-    is_valid: missing.length === 0 && invalid.length === 0,
-    readiness_score: readinessScore,
-    fields_present: [...present],
-    fields_missing: missing,
-    fields_invalid: invalid,
-    low_confidence_fields: lowConfidenceFields,
-    warnings,
-    suggestions,
-  };
-}
-
 export const ocrValidator = {
   validate(documentType: DocumentType, extracted: ExtractedDocument): ValidationResult {
     if (documentType === DocumentType.CITIZENSHIP) {
@@ -259,7 +251,7 @@ export const ocrValidator = {
       return validatePassportPhoto(extracted as PassportPhotoExtraction);
     }
 
-    return validatePanCertificate(extracted as PanCertificateExtraction);
+    throw new Error(`Unsupported document type for validator: ${documentType}`);
   },
 };
 

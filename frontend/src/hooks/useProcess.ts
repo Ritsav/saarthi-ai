@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '@/config/api';
-import { DEMO_MODE, getDemoChecklist, getDemoDocuments, getDemoProcessInfo } from '@/config/demo';
 import type { ProcessInfo, Requirement, ReadinessSummary, ProcessType } from '@/types';
 
 interface UseProcessResult {
@@ -15,8 +14,12 @@ interface UseProcessResult {
   refresh: () => Promise<void>;
 }
 
-export function useProcess(_inputProcessType?: string): UseProcessResult {
-  const processType: ProcessType = 'PASSPORT_APPLICATION';
+function normalizeProcessType(value?: string): ProcessType {
+  return 'PASSPORT_APPLICATION';
+}
+
+export function useProcess(inputProcessType?: string): UseProcessResult {
+  const processType = normalizeProcessType(inputProcessType);
   const [processInfo, setProcessInfo] = useState<ProcessInfo | null>(null);
   const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [readinessScore, setReadinessScore] = useState<ReadinessSummary>({ score: 0, complete: 0, total: 0 });
@@ -24,23 +27,6 @@ export function useProcess(_inputProcessType?: string): UseProcessResult {
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
-
-    if (DEMO_MODE) {
-      const process = getDemoProcessInfo(processType);
-      const documents = getDemoDocuments();
-      const { checklist, overallReadiness } = getDemoChecklist(processType, documents);
-      const complete = checklist.filter((item) => item.status === 'completed').length;
-
-      setProcessInfo(process);
-      setRequirements(checklist);
-      setReadinessScore({
-        score: overallReadiness,
-        complete,
-        total: checklist.length,
-      });
-      setIsLoading(false);
-      return;
-    }
 
     try {
       const [processesResponse, checklistResponse] = await Promise.all([
@@ -68,21 +54,10 @@ export function useProcess(_inputProcessType?: string): UseProcessResult {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [processType]);
 
   useEffect(() => {
     void refresh();
-
-    if (DEMO_MODE) {
-      const onDocumentsChanged = () => {
-        void refresh();
-      };
-
-      window.addEventListener('saarthi-demo-documents-changed', onDocumentsChanged);
-      return () => window.removeEventListener('saarthi-demo-documents-changed', onDocumentsChanged);
-    }
-
-    return undefined;
   }, [refresh]);
 
   return {

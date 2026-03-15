@@ -32,3 +32,36 @@ export interface ReadinessSummary {
   complete: number;
   total: number;
 }
+
+export type OCRFieldStatus = 'confirmed' | 'needs_review' | 'missing' | 'low_confidence';
+
+export interface OCRField {
+  key: string;
+  label: string;
+  value: string;
+  required: boolean;
+  status: OCRFieldStatus;
+  confidence: number;
+}
+
+export interface ProcessFormField {
+  key: string;
+  label: string;
+  required: boolean;
+  source: string;
+  source_document_type: string;
+  source_field: string;
+  selector: string;
+  selectors: string[];
+  value: string;
+  confidence: number | null;
+  status: 'mapped' | 'missing';
+}
+
+export interface ProcessFormSection {
+  id: string;
+  title: string;
+  fields: ProcessFormField[];
+  completed: number;
+  total: number;
+}

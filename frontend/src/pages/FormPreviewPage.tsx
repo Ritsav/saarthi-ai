@@ -1,26 +1,53 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Edit3 } from 'lucide-react';
-import { APPLICATION_SECTIONS, FIELD_LABELS } from '../data/passportDemo';
 import { usePassportFormData } from '@/hooks/usePassportFormData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AlertNotice } from '@/components/passport/AlertNotice';
+import api from '@/config/api';
+import { useState } from 'react';
 
 export default function FormPreviewPage() {
-  const { values, setFieldValue, formCompletion, missingFields } = usePassportFormData();
+  const { values, sections, fieldLabels, setFieldValue, formCompletion, missingFields, isLoading } = usePassportFormData();
+  const [exportState, setExportState] = useState<{
+    status: 'idle' | 'loading' | 'success' | 'error';
+    message: string;
+  }>({
+    status: 'idle',
+    message: '',
+  });
 
   const hasWarnings = missingFields.length > 0;
+  const renderedSections = useMemo(() => sections, [sections]);
 
-  const sections = useMemo(
-    () =>
-      APPLICATION_SECTIONS.map((section) => ({
-        ...section,
-        completed: section.fields.filter((field) => values[field]?.trim()).length,
-        total: section.fields.length,
-      })),
-    [values],
-  );
+  const exportToExtension = async () => {
+    setExportState({
+      status: 'loading',
+      message: 'Exporting mapped fields to extension...',
+    });
+
+    try {
+      const response = await api.post('/api/extension/export', {
+        process_type: 'PASSPORT_APPLICATION',
+        values,
+      });
+
+      const exportedCount = response.data?.data?.exportedCount ?? 0;
+      setExportState({
+        status: 'success',
+        message: `Export complete. ${exportedCount} fields saved for extension autofill.`,
+      });
+    } catch (error: any) {
+      setExportState({
+        status: 'error',
+        message:
+          error?.response?.data?.message ||
+          error?.message ||
+          'Failed to export fields to extension.',
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -31,7 +58,11 @@ export default function FormPreviewPage() {
 
       <section className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          {sections.map((section) => (
+          {isLoading ? (
+            <p className="text-sm text-slate-500">Loading form fields from backend...</p>
+          ) : null}
+
+          {renderedSections.map((section) => (
             <div key={section.title} className="mb-6 rounded-xl border border-slate-200 p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-slate-900">{section.title}</h2>
@@ -42,7 +73,7 @@ export default function FormPreviewPage() {
               <div className="grid gap-3 md:grid-cols-2">
                 {section.fields.map((fieldKey) => (
                   <label key={fieldKey} className="space-y-1 text-sm">
-                    <span className="text-slate-600">{FIELD_LABELS[fieldKey]}</span>
+                    <span className="text-slate-600">{fieldLabels[fieldKey] || fieldKey}</span>
                     <Input
                       value={values[fieldKey] || ''}
                       onChange={(event) => setFieldValue(fieldKey, event.target.value)}
@@ -84,6 +115,15 @@ export default function FormPreviewPage() {
               <Button asChild variant="outline" className="w-full rounded-xl justify-start">
                 <Link to="/documents">Review uploaded documents</Link>
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full rounded-xl justify-start"
+                onClick={exportToExtension}
+                disabled={exportState.status === 'loading'}
+              >
+                Export to extension
+              </Button>
               <Button asChild className="w-full rounded-xl bg-slate-900 hover:bg-slate-800 justify-start">
                 <Link to="/readiness">
                   <AlertTriangle className="mr-2 h-4 w-4" />
@@ -92,6 +132,14 @@ export default function FormPreviewPage() {
               </Button>
             </div>
           </div>
+
+          {exportState.status !== 'idle' ? (
+            <AlertNotice
+              tone={exportState.status === 'error' ? 'warning' : exportState.status === 'success' ? 'success' : 'info'}
+              title={exportState.status === 'success' ? 'Extension export ready' : exportState.status === 'error' ? 'Extension export failed' : 'Export in progress'}
+              description={exportState.message}
+            />
+          ) : null}
         </aside>
       </section>
     </div>

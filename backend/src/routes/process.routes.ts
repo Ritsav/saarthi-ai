@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { sendSuccess } from '../utils/response';
+import { processController } from '../controllers/process.controller';
+import { authMiddleware } from '../middleware/auth';
 
 export const processRoutes = Router();
 
-processRoutes.get('/_placeholder', (_req, res) => {
-  sendSuccess(res, { module: 'process', status: 'phase_pending' });
-});
+processRoutes.get('/', authMiddleware, processController.list);
+processRoutes.get('/:processType/checklist', authMiddleware, processController.checklist);
+processRoutes.get('/:processType/form', authMiddleware, processController.formDefinition);

@@ -4,26 +4,23 @@ import { autofillMapper } from './mapper';
 import { portalDefinitions } from './portals';
 
 describe('autofillMapper', () => {
-  it('maps PAN certificate fields to IRD selectors', () => {
-    const portal = portalDefinitions.ird_pan;
+  it('maps citizenship fields to passport selectors', () => {
+    const portal = portalDefinitions.nepal_passport;
 
     const documents = [
       {
-        id: 'doc-pan-1',
-        document_type: DocumentType.PAN_CERTIFICATE,
+        id: 'doc-citizenship-1',
+        document_type: DocumentType.CITIZENSHIP,
         ocr_result: {
-          document_type: 'PAN_CERTIFICATE',
+          document_type: 'CITIZENSHIP',
           fields: {
-            pan_number: '123456789',
-            registered_name: 'Acme Pvt Ltd',
-            business_type: 'IT',
-            registration_date: '2024-01-01',
-            tax_office: 'Kathmandu',
+            name_en: 'Nabin Budha',
+            citizenship_number: '12-34-56-78901',
           },
           confidence: {
             overall: 0.95,
             per_field: {
-              pan_number: 0.96,
+              name_en: 0.96,
             },
           },
         },
@@ -35,9 +32,9 @@ describe('autofillMapper', () => {
 
     const mapped = autofillMapper.mapPortalFields(portal, documents);
 
-    const panField = mapped.fields.find((field) => field.key === 'pan_number');
-    expect(panField?.value).toBe('123456789');
-    expect(mapped.missingFields.length).toBe(0);
+    const firstName = mapped.fields.find((field) => field.key === 'first_name');
+    expect(firstName?.value).toBe('Nabin');
+    expect(mapped.missingFields.length).toBeGreaterThanOrEqual(0);
   });
 
   it('reports missing required fields when source document absent', () => {

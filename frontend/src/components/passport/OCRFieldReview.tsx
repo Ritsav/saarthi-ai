@@ -2,7 +2,7 @@ import { AlertTriangle, CheckCircle2, CircleDashed, PencilLine } from 'lucide-re
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { OCRField } from '@/data/passportDemo';
+import type { OCRField } from '@/types';
 
 interface OCRFieldReviewProps {
   field: OCRField;

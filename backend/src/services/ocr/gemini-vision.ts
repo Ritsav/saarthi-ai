@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { DocumentType } from '@prisma/client';
 import { env } from '../../config/env';
 import { AppError } from '../../utils/errors';
+import { localOCRService } from './local-ocr';
 
 const PREFERRED_VISION_MODELS = [
   'gemini-2.0-flash',
@@ -23,11 +24,27 @@ function buildRawTextPrompt(documentType: DocumentType): string {
 export class GeminiVisionService {
   private readonly client = new GoogleGenerativeAI(env.GEMINI_API_KEY);
 
-  private resolvedModelName: string | null = null;
+  private resolvedModelNames: string[] | null = null;
 
-  private async resolveModelName(): Promise<string> {
-    if (this.resolvedModelName) {
-      return this.resolvedModelName;
+  private prioritizeModels(models: string[]): string[] {
+    const preferred = PREFERRED_VISION_MODELS.filter((model) => models.includes(model));
+    const remaining = models.filter((model) => !preferred.includes(model));
+    return [...preferred, ...remaining];
+  }
+
+  private isRateLimitError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    return (
+      message.includes('429') ||
+      message.includes('too many requests') ||
+      message.includes('quota') ||
+      message.includes('rate limit')
+    );
+  }
+
+  private async resolveModelNames(): Promise<string[]> {
+    if (this.resolvedModelNames && this.resolvedModelNames.length > 0) {
+      return this.resolvedModelNames;
     }
 
     try {
@@ -48,16 +65,16 @@ export class GeminiVisionService {
           .map((model) => (model.name ?? '').replace(/^models\//, ''))
           .filter((name) => name.length > 0);
 
-        const preferred = PREFERRED_VISION_MODELS.find((model) => supported.includes(model));
-        this.resolvedModelName = preferred ?? supported[0] ?? PREFERRED_VISION_MODELS[0];
-        return this.resolvedModelName;
+        const prioritized = this.prioritizeModels(supported);
+        this.resolvedModelNames = prioritized.length > 0 ? prioritized : [...PREFERRED_VISION_MODELS];
+        return this.resolvedModelNames;
       }
     } catch {
       // fallback below
     }
 
-    this.resolvedModelName = PREFERRED_VISION_MODELS[0];
-    return this.resolvedModelName;
+    this.resolvedModelNames = [...PREFERRED_VISION_MODELS];
+    return this.resolvedModelNames;
   }
 
   async extractRawText(
@@ -69,30 +86,56 @@ export class GeminiVisionService {
       throw new AppError(503, 'OCR_PROVIDER_UNAVAILABLE', 'GEMINI_API_KEY is required for OCR');
     }
 
-    const modelName = await this.resolveModelName();
-    const model = this.client.getGenerativeModel({ model: modelName });
-
     const fileBuffer = await fs.readFile(absoluteFilePath);
     const base64 = fileBuffer.toString('base64');
+    const modelNames = await this.resolveModelNames();
+    let lastError: unknown = null;
 
-    const result = await model.generateContent([
-      {
-        text: buildRawTextPrompt(documentType),
-      },
-      {
-        inlineData: {
-          data: base64,
-          mimeType,
-        },
-      },
-    ]);
+    for (const modelName of modelNames) {
+      try {
+        const model = this.client.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent([
+          {
+            text: buildRawTextPrompt(documentType),
+          },
+          {
+            inlineData: {
+              data: base64,
+              mimeType,
+            },
+          },
+        ]);
 
-    const content = result.response.text().trim();
-    if (!content) {
-      throw new AppError(502, 'OCR_EMPTY_RESULT', 'OCR returned empty output');
+        const content = result.response.text().trim();
+        if (!content) {
+          throw new AppError(502, 'OCR_EMPTY_RESULT', 'OCR returned empty output');
+        }
+
+        // Keep successful model first for next requests.
+        this.resolvedModelNames = [modelName, ...modelNames.filter((item) => item !== modelName)];
+        return content;
+      } catch (error) {
+        lastError = error;
+
+        if (!this.isRateLimitError(error)) {
+          throw error;
+        }
+      }
     }
 
-    return content;
+    if (localOCRService.canRun(mimeType)) {
+      const fallbackText = await localOCRService.extractRawTextFromImage(absoluteFilePath);
+      if (fallbackText.trim().length > 0) {
+        return fallbackText;
+      }
+    }
+
+    const details = lastError instanceof Error ? lastError.message : 'Unknown OCR provider failure';
+    throw new AppError(
+      503,
+      'OCR_PROVIDER_RATE_LIMITED',
+      `OCR provider limit reached and local fallback failed: ${details}`
+    );
   }
 }
 

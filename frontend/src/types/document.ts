@@ -23,6 +23,7 @@ export interface DocumentItem {
   process_type: ProcessType | null;
   document_type?: string;
   status: DocumentStatus;
+  processing_error?: string | null;
   created_at: string;
   preview_url?: string;
   thumbnail_url?: string;

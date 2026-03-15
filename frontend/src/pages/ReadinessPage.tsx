@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, FileWarning, ShieldCheck } from 'lucide-react';
-import { NEXT_STEP_TIMELINE, PORTAL_LINK } from '../data/passportDemo';
+import { NEXT_STEP_TIMELINE } from '../data/passportContent';
 import { useProcess } from '@/hooks/useProcess';
 import { useDocuments } from '@/hooks/useDocuments';
 import { usePassportFormData } from '@/hooks/usePassportFormData';
@@ -17,7 +17,7 @@ function readinessLabel(score: number) {
 }
 
 export default function ReadinessPage() {
-  const { readinessScore, requirements } = useProcess('PASSPORT_APPLICATION');
+  const { readinessScore, requirements, portalUrl } = useProcess('PASSPORT_APPLICATION');
   const { documents } = useDocuments();
   const { missingFields, formCompletion } = usePassportFormData();
 
@@ -94,7 +94,7 @@ export default function ReadinessPage() {
 
           <AlertNotice tone="info" title="Document pass/fail summary" description={`Valid documents: ${documents.length - documentIssues} | Needs review: ${documentIssues + (missingFields.length > 0 ? 1 : 0)}`} />
 
-          <OfficialPortalCard href={PORTAL_LINK} />
+          <OfficialPortalCard href={portalUrl || '#'} />
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <h3 className="text-sm font-semibold text-slate-900">Quick actions</h3>

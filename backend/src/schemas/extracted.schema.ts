@@ -43,26 +43,11 @@ export const passportPhotoExtractionSchema = z.object({
   raw_text: z.string().optional(),
 });
 
-export const panCertificateExtractionSchema = z.object({
-  document_type: z.literal('PAN_CERTIFICATE'),
-  fields: z.object({
-    pan_number: optionalTextSchema,
-    registered_name: optionalTextSchema,
-    business_type: optionalTextSchema,
-    registration_date: optionalTextSchema,
-    tax_office: optionalTextSchema,
-  }),
-  confidence: confidenceSchema,
-  raw_text: z.string().optional(),
-});
-
 export const extractedDocumentSchema = z.discriminatedUnion('document_type', [
   citizenshipExtractionSchema,
   passportPhotoExtractionSchema,
-  panCertificateExtractionSchema,
 ]);
 
 export type CitizenshipExtraction = z.infer<typeof citizenshipExtractionSchema>;
 export type PassportPhotoExtraction = z.infer<typeof passportPhotoExtractionSchema>;
-export type PanCertificateExtraction = z.infer<typeof panCertificateExtractionSchema>;
 export type ExtractedDocument = z.infer<typeof extractedDocumentSchema>;

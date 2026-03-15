@@ -12,29 +12,41 @@ import { usePassportFormData } from '@/hooks/usePassportFormData';
 
 export default function DocumentsPage() {
   const navigate = useNavigate();
-  const { documents, uploadDocument } = useDocuments();
-  const { fields } = usePassportFormData();
+  const { documents, uploadDocument, analyzeDocument } = useDocuments();
+  const { fields, refresh: refreshFormData } = usePassportFormData();
 
-  const passportDocs = documents.filter((doc) => doc.process_type === 'PASSPORT_APPLICATION');
+  const passportDocs = documents.filter(
+    (doc) =>
+      doc.process_type === 'PASSPORT_APPLICATION' &&
+      (doc.document_type === 'CITIZENSHIP' || doc.document_type === 'PASSPORT_PHOTO')
+  );
 
   const validationSummary = useMemo(() => {
-    const nameDetected = fields.find((field) => field.key === 'full_name')?.value;
-    const dobDetected = fields.find((field) => field.key === 'date_of_birth')?.value;
-    const citizenshipDetected = fields.find((field) => field.key === 'citizenship_number')?.value;
+    const requiredFields = fields.filter((field) => field.required);
+    const trackedFields = (requiredFields.length > 0 ? requiredFields : fields).slice(0, 5);
+    const completed = trackedFields.filter((field) => field.value.trim().length > 0).length;
 
     return {
-      nameDetected: Boolean(nameDetected),
-      dobDetected: Boolean(dobDetected),
-      citizenshipDetected: Boolean(citizenshipDetected),
-      photoQuality: passportDocs.some((doc) => doc.file_name.toLowerCase().includes('photo')) ? 'Needs review' : 'Not checked yet',
-      imageClarity: 'Good',
+      trackedFields,
+      completed,
+      total: trackedFields.length,
+      photoUploaded: passportDocs.some((doc) => doc.document_type === 'PASSPORT_PHOTO' || doc.file_name.toLowerCase().includes('photo')),
     };
   }, [fields, passportDocs]);
 
-  const handleFileSelect = async (files: File[]) => {
+  const handleFileSelect = async (
+    files: File[],
+    documentType: 'CITIZENSHIP' | 'PASSPORT_PHOTO'
+  ) => {
     for (const file of files) {
-      await uploadDocument(file, 'PASSPORT_APPLICATION' as ProcessType);
+      const uploaded = await uploadDocument(
+        file,
+        'PASSPORT_APPLICATION' as ProcessType,
+        documentType
+      );
+      await analyzeDocument(uploaded.id);
     }
+    await refreshFormData();
   };
 
   return (
@@ -50,7 +62,15 @@ export default function DocumentsPage() {
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {passportDocs.map((document) => (
-              <PassportFileCard key={document.id} document={document} onReview={() => navigate('/ocr-review')} />
+              <PassportFileCard
+                key={document.id}
+                document={document}
+                onReview={() => navigate('/ocr-review')}
+                onRetry={async () => {
+                  await analyzeDocument(document.id);
+                  await refreshFormData();
+                }}
+              />
             ))}
           </div>
 
@@ -66,29 +86,31 @@ export default function DocumentsPage() {
             <h2 className="text-sm font-semibold text-slate-900">AI validation summary</h2>
             <div className="mt-3 space-y-2 text-sm text-slate-700">
               <div className="flex items-center justify-between">
-                <span>Name detected</span>
-                <ValidationBadge state={validationSummary.nameDetected ? 'valid' : 'missing'} />
+                <span>Mapped required fields</span>
+                <ValidationBadge state={validationSummary.completed === validationSummary.total ? 'valid' : 'needs_review'} />
               </div>
+              {validationSummary.trackedFields.map((field) => (
+                <div key={field.key} className="flex items-center justify-between">
+                  <span>{field.label}</span>
+                  <ValidationBadge state={field.value.trim() ? 'valid' : 'missing'} />
+                </div>
+              ))}
               <div className="flex items-center justify-between">
-                <span>Date of birth detected</span>
-                <ValidationBadge state={validationSummary.dobDetected ? 'valid' : 'missing'} />
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Citizenship number detected</span>
-                <ValidationBadge state={validationSummary.citizenshipDetected ? 'valid' : 'missing'} />
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Photo quality check</span>
-                <ValidationBadge state={validationSummary.photoQuality === 'Needs review' ? 'needs_review' : 'valid'} />
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Image clarity check</span>
-                <ValidationBadge state="valid" />
+                <span>Passport photo uploaded</span>
+                <ValidationBadge state={validationSummary.photoUploaded ? 'valid' : 'missing'} />
               </div>
             </div>
           </div>
 
-          <AlertNotice tone="warning" title="Missing requirements summary" description="Issue date is missing from extracted data. Add it during OCR review." />
+          <AlertNotice
+            tone={validationSummary.completed === validationSummary.total ? 'success' : 'warning'}
+            title="Missing requirements summary"
+            description={
+              validationSummary.completed === validationSummary.total
+                ? 'Required form fields are present from backend mapping.'
+                : `${validationSummary.total - validationSummary.completed} required fields still need values.`
+            }
+          />
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">

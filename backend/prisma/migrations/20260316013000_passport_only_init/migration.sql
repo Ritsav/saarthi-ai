@@ -18,7 +18,7 @@ CREATE TABLE `chats` (
     `id` VARCHAR(191) NOT NULL,
     `user_id` VARCHAR(191) NOT NULL,
     `title` VARCHAR(191) NOT NULL DEFAULT 'New Chat',
-    `process_type` ENUM('COMPANY_REGISTRATION', 'PAN_REGISTRATION', 'PASSPORT_APPLICATION') NULL,
+    `process_type` ENUM('PASSPORT_APPLICATION') NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
 
@@ -51,16 +51,21 @@ CREATE TABLE `documents` (
     `file_name` VARCHAR(191) NOT NULL,
     `file_type` VARCHAR(191) NOT NULL,
     `file_size` INTEGER NOT NULL,
-    `document_type` ENUM('CITIZENSHIP', 'PASSPORT_PHOTO', 'COMPANY_MOA', 'PAN_CERTIFICATE', 'BIRTH_CERTIFICATE', 'UTILITY_BILL', 'RENTAL_AGREEMENT', 'OTHER') NOT NULL DEFAULT 'OTHER',
-    `process_type` ENUM('COMPANY_REGISTRATION', 'PAN_REGISTRATION', 'PASSPORT_APPLICATION') NULL,
+    `document_type` ENUM('CITIZENSHIP', 'PASSPORT_PHOTO', 'BIRTH_CERTIFICATE', 'UTILITY_BILL', 'RENTAL_AGREEMENT', 'OTHER') NOT NULL DEFAULT 'OTHER',
+    `process_type` ENUM('PASSPORT_APPLICATION') NULL,
+    `status` ENUM('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED') NOT NULL DEFAULT 'PENDING',
+    `processing_error` VARCHAR(191) NULL,
     `ocr_result` JSON NULL,
     `validation_result` JSON NULL,
+    `processed_at` DATETIME(3) NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     INDEX `documents_user_id_idx`(`user_id`),
     INDEX `documents_chat_id_idx`(`chat_id`),
     INDEX `documents_process_type_idx`(`process_type`),
     INDEX `documents_document_type_idx`(`document_type`),
+    INDEX `documents_status_idx`(`status`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -91,3 +96,4 @@ ALTER TABLE `documents` ADD CONSTRAINT `documents_chat_id_fkey` FOREIGN KEY (`ch
 
 -- AddForeignKey
 ALTER TABLE `consents` ADD CONSTRAINT `consents_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+

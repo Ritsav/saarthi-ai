@@ -17,12 +17,6 @@
     "scripting"
   ],
   "host_permissions": [
-    "https://*.camis.ocr.gov.np/*",
-    "https://camis.ocr.gov.np/*",
-    "https://*.taxpayerportal.ird.gov.np/*",
-    "https://taxpayerportal.ird.gov.np/*",
-    "https://*.ird.gov.np/*",
-    "https://ird.gov.np/*",
     "https://*.nepalpassport.gov.np/*",
     "https://nepalpassport.gov.np/*",
     "https://*.epassport.immigration.gov.np/*",
@@ -35,12 +29,6 @@
   "content_scripts": [
     {
       "matches": [
-        "https://*.camis.ocr.gov.np/*",
-        "https://camis.ocr.gov.np/*",
-        "https://*.taxpayerportal.ird.gov.np/*",
-        "https://taxpayerportal.ird.gov.np/*",
-        "https://*.ird.gov.np/*",
-        "https://ird.gov.np/*",
         "https://*.nepalpassport.gov.np/*",
         "https://nepalpassport.gov.np/*",
         "https://*.epassport.immigration.gov.np/*",
