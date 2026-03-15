@@ -1,8 +1,15 @@
 import { ProcessType } from '@prisma/client';
+import { runSimpleChat } from './llm/chat-runner';
+import { logger } from '../utils/logger';
 
 interface ResponderInput {
   userMessage: string;
   processType: ProcessType | null;
+}
+
+export interface ResponderChunk {
+  content: string;
+  fallbackUsed: boolean;
 }
 
 function processLabel(processType: ProcessType | null): string {
@@ -22,19 +29,42 @@ function chunkText(text: string, chunkSize = 24): string[] {
 }
 
 export class EchoResponder {
-  public readonly name = 'echo_responder';
+  public readonly name = 'gemini_responder';
 
-  public async *streamResponse(input: ResponderInput): AsyncIterable<string> {
-    const response = [
-      `I received your message about ${processLabel(input.processType)}.`,
-      'AI agent integration is not active yet, so this is a temporary response.',
-      `You said: "${input.userMessage.trim()}"`,
-      'Your message is saved and ready for Phase 5+ integrations.',
-    ].join(' ');
+  public async *streamResponse(input: ResponderInput): AsyncIterable<ResponderChunk> {
+    const prompt = [
+      `Context: user is asking about ${processLabel(input.processType)}.`,
+      input.userMessage.trim(),
+    ].join('\n\n');
+
+    let response: string;
+    let fallbackUsed = false;
+
+    try {
+      response = await runSimpleChat(prompt);
+    } catch (error) {
+      fallbackUsed = true;
+      logger.warn(
+        {
+          responder: this.name,
+          error: error instanceof Error ? error.message : 'unknown_error',
+        },
+        'Gemini response failed, using fallback responder output'
+      );
+
+      response = [
+        `I received your message about ${processLabel(input.processType)}.`,
+        'Gemini is unavailable right now, so this is a local fallback response.',
+        `You said: "${input.userMessage.trim()}"`,
+      ].join(' ');
+    }
 
     const chunks = chunkText(response);
     for (const chunk of chunks) {
-      yield chunk;
+      yield {
+        content: chunk,
+        fallbackUsed,
+      };
     }
   }
 }
