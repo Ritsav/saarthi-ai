@@ -1,0 +1,22 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: saarthi-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-saarthi_root_pass}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-saarthi_db}
+      MYSQL_USER: ${MYSQL_USER:-saarthi_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-saarthi_pass}
+    ports:
+      - '3306:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p$$MYSQL_ROOT_PASSWORD']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql_data:

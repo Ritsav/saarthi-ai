@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProcessType {
+  COMPANY_REGISTRATION
+  PAN_REGISTRATION
+  PASSPORT_APPLICATION
+}
+
+enum MessageRole {
+  user
+  assistant
+  system
+}
+
+enum ConsentType {
+  DATA_PROCESSING
+  DOCUMENT_STORAGE
+  AI_ANALYSIS
+  TERMS_OF_SERVICE
+}
+
+enum DocumentType {
+  CITIZENSHIP
+  PASSPORT_PHOTO
+  COMPANY_MOA
+  PAN_CERTIFICATE
+  BIRTH_CERTIFICATE
+  UTILITY_BILL
+  RENTAL_AGREEMENT
+  OTHER
+}
+
+model User {
+  id                  String   @id @default(uuid())
+  email               String   @unique
+  password            String
+  name                String
+  language_preference String   @default("en")
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  chats     Chat[]
+  documents Document[]
+  consents  Consent[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model Chat {
+  id           String      @id @default(uuid())
+  user_id      String
+  title        String      @default("New Chat")
+  process_type ProcessType?
+  created_at   DateTime    @default(now())
+  updated_at   DateTime    @updatedAt
+
+  user      User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  messages  Message[]
+  documents Document[]
+
+  @@index([user_id])
+  @@index([process_type])
+  @@index([created_at])
+  @@map("chats")
+}
+
+model Message {
+  id         String      @id @default(uuid())
+  chat_id    String
+  role       MessageRole
+  content    String      @db.LongText
+  metadata   Json?
+  created_at DateTime    @default(now())
+
+  chat Chat @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+
+  @@index([chat_id])
+  @@index([created_at])
+  @@map("messages")
+}
+
+model Document {
+  id                String       @id @default(uuid())
+  user_id           String
+  chat_id           String?
+  file_path         String
+  file_name         String
+  file_type         String
+  file_size         Int
+  document_type     DocumentType @default(OTHER)
+  process_type      ProcessType?
+  ocr_result        Json?
+  validation_result Json?
+  created_at        DateTime     @default(now())
+
+  user User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  chat Chat? @relation(fields: [chat_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id])
+  @@index([chat_id])
+  @@index([process_type])
+  @@index([document_type])
+  @@map("documents")
+}
+
+model Consent {
+  id           String      @id @default(uuid())
+  user_id      String
+  consent_type ConsentType
+  granted_at   DateTime    @default(now())
+  ip_address   String?
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, consent_type])
+  @@index([user_id])
+  @@map("consents")
+}
