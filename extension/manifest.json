@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Saarthi Autofill",
+  "description": "Autofill Nepal government forms using extracted Saarthi AI document data.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Saarthi Autofill",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://camis.ocr.gov.np/*",
+    "https://taxpayerportal.ird.gov.np/*",
+    "https://ird.gov.np/*",
+    "https://nepalpassport.gov.np/*",
+    "https://epassport.immigration.gov.np/*",
+    "http://localhost:3001/*",
+    "https://api.saarthi.ai/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://camis.ocr.gov.np/*",
+        "https://taxpayerportal.ird.gov.np/*",
+        "https://ird.gov.np/*",
+        "https://nepalpassport.gov.np/*",
+        "https://epassport.immigration.gov.np/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

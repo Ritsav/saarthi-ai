@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Saarthi Autofill</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="header">
+        <h1>Saarthi Autofill</h1>
+        <p class="subtitle">Nepal Government Form Assistant</p>
+      </header>
+
+      <section class="config-card">
+        <label for="apiBaseUrl">Backend API URL</label>
+        <div class="config-row">
+          <input id="apiBaseUrl" type="url" placeholder="http://localhost:3001" />
+          <button id="saveApiBaseUrl" type="button">Save</button>
+        </div>
+      </section>
+
+      <section id="authSection" class="card"></section>
+      <section id="portalSection" class="card hidden"></section>
+      <section id="resultSection" class="card hidden"></section>
+
+      <footer class="footer" id="statusText">Initializing...</footer>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
