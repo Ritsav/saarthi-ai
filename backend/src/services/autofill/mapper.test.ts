@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DocumentType, ProcessType } from '@prisma/client';
+import { DocumentType } from '@prisma/client';
 import { autofillMapper } from './mapper';
 import { portalDefinitions } from './portals';
 
@@ -47,5 +47,42 @@ describe('autofillMapper', () => {
 
     expect(mapped.fields.length).toBe(0);
     expect(mapped.missingFields.length).toBeGreaterThan(0);
+  });
+
+  it('keeps selector fallback list for passport fields', () => {
+    const portal = portalDefinitions.nepal_passport;
+    const documents = [
+      {
+        id: 'doc-citizen-1',
+        document_type: DocumentType.CITIZENSHIP,
+        ocr_result: {
+          document_type: 'CITIZENSHIP',
+          fields: {
+            name_en: 'Nabin Budha',
+            name_ne: 'नबिन बुढा',
+            citizenship_number: '12-34-56-78901',
+            date_of_birth: '1998-10-09',
+            issue_date: '2018-05-20',
+            issue_district: 'Dolpa',
+            father_name: 'Madan Budha',
+            mother_name: 'Parbati Budha',
+            address: 'Tripureshwor, Kathmandu',
+          },
+          confidence: {
+            overall: 0.95,
+            per_field: {},
+          },
+        },
+        validation_result: {
+          low_confidence_fields: [],
+        },
+      },
+    ];
+
+    const mapped = autofillMapper.mapPortalFields(portal, documents);
+    const firstNameField = mapped.fields.find((field) => field.key === 'first_name');
+
+    expect(firstNameField?.selector).toBe("[formcontrolname='firstName']");
+    expect(firstNameField?.selectors?.length).toBeGreaterThan(1);
   });
 });

@@ -13,25 +13,40 @@
   "permissions": [
     "storage",
     "activeTab",
-    "tabs"
+    "tabs",
+    "scripting"
   ],
   "host_permissions": [
+    "https://*.camis.ocr.gov.np/*",
     "https://camis.ocr.gov.np/*",
+    "https://*.taxpayerportal.ird.gov.np/*",
     "https://taxpayerportal.ird.gov.np/*",
+    "https://*.ird.gov.np/*",
     "https://ird.gov.np/*",
+    "https://*.nepalpassport.gov.np/*",
     "https://nepalpassport.gov.np/*",
+    "https://*.epassport.immigration.gov.np/*",
     "https://epassport.immigration.gov.np/*",
+    "http://*.nepalpassport.gov.np/*",
+    "http://nepalpassport.gov.np/*",
     "http://localhost:3001/*",
     "https://api.saarthi.ai/*"
   ],
   "content_scripts": [
     {
       "matches": [
+        "https://*.camis.ocr.gov.np/*",
         "https://camis.ocr.gov.np/*",
+        "https://*.taxpayerportal.ird.gov.np/*",
         "https://taxpayerportal.ird.gov.np/*",
+        "https://*.ird.gov.np/*",
         "https://ird.gov.np/*",
+        "https://*.nepalpassport.gov.np/*",
         "https://nepalpassport.gov.np/*",
-        "https://epassport.immigration.gov.np/*"
+        "https://*.epassport.immigration.gov.np/*",
+        "https://epassport.immigration.gov.np/*",
+        "http://*.nepalpassport.gov.np/*",
+        "http://nepalpassport.gov.np/*"
       ],
       "js": [
         "content.js"

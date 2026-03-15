@@ -148,6 +148,7 @@ export const autofillService = {
       missingFields: mapped.missingFields,
       warnings: [...new Set(mapped.warnings)],
       manualSteps: portal.manualSteps ?? [],
+      formSelectorPlan: portal.formSelectorPlan ?? [],
       generatedAt: new Date().toISOString(),
     };
   },
@@ -172,6 +173,7 @@ export const autofillService = {
       missingFields: mapped.missingFields,
       warnings: [...new Set(mapped.warnings)],
       manualSteps: portal.manualSteps ?? [],
+      formSelectorPlan: portal.formSelectorPlan ?? [],
       updatedAt: new Date().toISOString(),
     };
   },

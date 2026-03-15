@@ -26,7 +26,7 @@ function isEditableField(element) {
     return false;
   }
 
-  if (element.hasAttribute('disabled') || element.hasAttribute('readonly')) {
+  if (element.hasAttribute('disabled')) {
     return false;
   }
 
@@ -88,15 +88,21 @@ function nextTick() {
 }
 
 function selectMatOptionByText(optionText) {
-  const text = String(optionText || '').trim().toLowerCase();
+  const text = String(optionText || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
   if (!text) {
     return false;
   }
 
   const options = Array.from(document.querySelectorAll('.cdk-overlay-pane mat-option, .cdk-overlay-pane .mat-option'));
   for (const option of options) {
-    const candidate = (option.textContent || '').trim().toLowerCase();
-    if (candidate === text || candidate.includes(text)) {
+    const candidate = (option.textContent || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
+    if (candidate === text || candidate.includes(text) || text.includes(candidate)) {
       option.click();
       return true;
     }
@@ -105,15 +111,90 @@ function selectMatOptionByText(optionText) {
   return false;
 }
 
+async function waitForMatOptions(timeoutMs = 1500) {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const options = document.querySelectorAll('.cdk-overlay-pane mat-option, .cdk-overlay-pane .mat-option');
+    if (options.length > 0) {
+      return true;
+    }
+    await nextTick();
+  }
+
+  return false;
+}
+
+function normalizeDateFormats(value) {
+  if (typeof value !== 'string') {
+    return [String(value ?? '')];
+  }
+
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return [trimmed];
+  }
+
+  const [yyyy, mm, dd] = trimmed.split('-');
+  return [trimmed, `${dd}/${mm}/${yyyy}`, `${dd}-${mm}-${yyyy}`];
+}
+
+function getCandidateValues(field) {
+  const baseValue = field?.value;
+  const key = String(field?.key || '').toLowerCase();
+
+  if (key.includes('date') || key.includes('dob')) {
+    return normalizeDateFormats(baseValue);
+  }
+
+  return [typeof baseValue === 'string' ? baseValue : String(baseValue ?? '')];
+}
+
+function resolveMatSelectElement(element, selector) {
+  if (element.matches('mat-select, .mat-select')) {
+    return element;
+  }
+
+  if (typeof selector === 'string' && selector.includes('formcontrolname=')) {
+    const match = selector.match(/formcontrolname=['\"]([^'\"]+)['\"]/i);
+    const controlName = match?.[1];
+    if (controlName) {
+      const matByControl = document.querySelector(`mat-select[formcontrolname="${CSS.escape(controlName)}"]`);
+      if (matByControl) {
+        return matByControl;
+      }
+    }
+  }
+
+  const container = element.closest('mat-form-field, .mat-form-field');
+  if (container) {
+    const nestedSelect = container.querySelector('mat-select, .mat-select');
+    if (nestedSelect) {
+      return nestedSelect;
+    }
+  }
+
+  return null;
+}
+
 async function setFieldBySelector(selector, value) {
   const element = document.querySelector(selector);
   if (!element) {
     return { status: 'not_found' };
   }
 
-  if (element.matches('mat-select, .mat-select')) {
-    element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    await nextTick();
+  const matSelectElement = resolveMatSelectElement(element, selector);
+  if (matSelectElement) {
+    matSelectElement.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    matSelectElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    if (typeof matSelectElement.click === 'function') {
+      matSelectElement.click();
+    }
+
+    const hasOptions = await waitForMatOptions(1800);
+    if (!hasOptions) {
+      return { status: 'rejected' };
+    }
 
     const selected = selectMatOptionByText(value);
     if (!selected) {
@@ -134,6 +215,35 @@ async function setFieldBySelector(selector, value) {
   }
 
   return { status: 'filled' };
+}
+
+async function setFieldBySelectors(selectors, value) {
+  if (!Array.isArray(selectors) || selectors.length === 0) {
+    return { status: 'not_found' };
+  }
+
+  let sawRejected = false;
+
+  for (const selector of selectors) {
+    if (typeof selector !== 'string' || selector.trim().length === 0) {
+      continue;
+    }
+
+    const result = await setFieldBySelector(selector, value);
+    if (result.status === 'filled') {
+      return result;
+    }
+
+    if (result.status === 'rejected') {
+      sawRejected = true;
+    }
+  }
+
+  if (sawRejected) {
+    return { status: 'rejected' };
+  }
+
+  return { status: 'not_found' };
 }
 
 async function tryAssignFileInput(fileField, uploadedFile) {
@@ -190,21 +300,30 @@ async function runFill(payload) {
 
   for (const field of payload.fields || []) {
     const selector = field?.selector;
-    const value = field?.value;
+    const selectors = Array.isArray(field?.selectors) ? field.selectors : null;
+    const candidateValues = getCandidateValues(field);
 
-    if (typeof selector !== 'string' || selector.length === 0) {
+    if ((!selectors || selectors.length === 0) && (typeof selector !== 'string' || selector.length === 0)) {
       continue;
     }
 
-    const result = await setFieldBySelector(selector, value);
+    const candidateSelectors = selectors && selectors.length > 0 ? selectors : [selector];
+    let result = { status: 'not_found' };
+    for (const candidateValue of candidateValues) {
+      result = await setFieldBySelectors(candidateSelectors, candidateValue);
+      if (result.status === 'filled') {
+        break;
+      }
+    }
+    const primarySelector = candidateSelectors[0] || selector;
 
     if (result.status === 'not_found') {
-      notFound.push(selector);
+      notFound.push(primarySelector);
       continue;
     }
 
     if (result.status === 'rejected') {
-      rejected.push(selector);
+      rejected.push(primarySelector);
       continue;
     }
 
@@ -244,3 +363,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   return false;
 });
+
+chrome.runtime.sendMessage({
+  type: 'SAARTHI_CONTENT_READY',
+  payload: {
+    url: window.location.href,
+    portal: detectCurrentPortal(),
+  },
+}).catch(() => undefined);

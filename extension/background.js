@@ -155,12 +155,16 @@ async function updateApiBaseUrl(apiBaseUrl) {
 }
 
 async function getPortalStatus(portalKey) {
-  const payload = await requestJson(`/api/extension/status/${portalKey}`);
+  const payload = await requestJson(
+    `/api/extension/status/${portalKey}?processType=PASSPORT_APPLICATION`
+  );
   return payload.data;
 }
 
 async function getPortalAutofill(portalKey) {
-  const payload = await requestJson(`/api/extension/autofill/${portalKey}`);
+  const payload = await requestJson(
+    `/api/extension/autofill/${portalKey}?processType=PASSPORT_APPLICATION`
+  );
   return payload.data;
 }
 
@@ -206,7 +210,7 @@ async function attachGuessedPassportFiles(autofillPayload) {
   }
 
   const apiBaseUrl = await getApiBaseUrl();
-  const response = await fetch(`${apiBaseUrl}/api/document?process_type=PASSPORT_APPLICATION&limit=50`, {
+  const response = await fetch(`${apiBaseUrl}/api/document?process_type=PASSPORT_APPLICATION&limit=50&include_mock=true`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -244,16 +248,27 @@ async function attachGuessedPassportFiles(autofillPayload) {
     },
   ];
 
-  const frontDoc = citizenshipDocs[0];
-  const fileBlob = await getDocumentBinary(frontDoc.id, token).catch(() => null);
-  if (fileBlob) {
+  const frontDoc =
+    citizenshipDocs.find((doc) => /front/i.test(String(doc.file_name || ''))) ?? citizenshipDocs[0];
+  const backDoc =
+    citizenshipDocs.find((doc) => /back/i.test(String(doc.file_name || ''))) ?? citizenshipDocs[1] ?? frontDoc;
+
+  const [frontBlob, backBlob] = await Promise.all([
+    getDocumentBinary(frontDoc.id, token).catch(() => null),
+    backDoc ? getDocumentBinary(backDoc.id, token).catch(() => null) : Promise.resolve(null),
+  ]);
+
+  if (frontBlob) {
     uploadedFiles.push({
       key: 'citizenship_front',
-      ...fileBlob,
+      ...frontBlob,
     });
+  }
+
+  if (backBlob) {
     uploadedFiles.push({
       key: 'citizenship_back',
-      ...fileBlob,
+      ...backBlob,
     });
   }
 
@@ -276,12 +291,44 @@ async function runFill(tabId, autofillPayload) {
 
   const payloadWithFiles = await attachGuessedPassportFiles(autofillPayload);
 
-  const response = await chrome.tabs.sendMessage(tabId, {
-    type: 'SAARTHI_FILL_FIELDS',
-    payload: payloadWithFiles,
-  });
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, {
+      type: 'SAARTHI_FILL_FIELDS',
+      payload: payloadWithFiles,
+    });
 
-  return response;
+    if (!response) {
+      throw new Error('Empty response from content script');
+    }
+
+    return response;
+  } catch (error) {
+    const message = String(error?.message || '');
+    const needsInjection =
+      message.includes('Receiving end does not exist') ||
+      message.includes('Could not establish connection') ||
+      message.includes('No tab with id');
+
+    if (!needsInjection) {
+      throw error;
+    }
+
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content.js'],
+    });
+
+    const retryResponse = await chrome.tabs.sendMessage(tabId, {
+      type: 'SAARTHI_FILL_FIELDS',
+      payload: payloadWithFiles,
+    });
+
+    if (!retryResponse) {
+      throw new Error('Content script unavailable on this page');
+    }
+
+    return retryResponse;
+  }
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -305,6 +352,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         return getPortalAutofill(message.payload?.portalKey);
       case 'SAARTHI_RUN_FILL':
         return runFill(message.payload?.tabId, message.payload?.autofill);
+      case 'SAARTHI_CONTENT_READY':
+        return { ok: true };
       default:
         throw new Error(`Unknown message type: ${String(message?.type)}`);
     }

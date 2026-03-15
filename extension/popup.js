@@ -175,6 +175,32 @@ function renderFillResult(fillResult) {
   showElement(resultSection, true);
 }
 
+function renderFormSelectorPlan(plan) {
+  if (!Array.isArray(plan) || plan.length === 0) {
+    return;
+  }
+
+  const rows = plan
+    .map((item) => {
+      const mode = escapeHtml(item.mode || 'manual');
+      const step = escapeHtml(item.step || 'Step');
+      const firstSelectors = Array.isArray(item.selectors) ? item.selectors.slice(0, 3).map((s) => `<code>${escapeHtml(s)}</code>`).join(', ') : '';
+      const notes = item.notes ? `<div class="hint">${escapeHtml(item.notes)}</div>` : '';
+      return `<li><strong>${step}</strong> <span class="pill">${mode}</span><div class="hint">${firstSelectors}</div>${notes}</li>`;
+    })
+    .join('');
+
+  const existing = resultSection.innerHTML || '';
+  resultSection.innerHTML = `
+    ${existing}
+    <div class="stack" style="margin-top:8px;">
+      <strong>Form Selector Plan</strong>
+      <ul>${rows}</ul>
+    </div>
+  `;
+  showElement(resultSection, true);
+}
+
 function renderFillError(message) {
   resultSection.innerHTML = `
     <div class="stack">
@@ -212,6 +238,9 @@ async function refreshPortalState() {
     renderPortalDetails(detectorResult, statusData, autofillData);
     if (Array.isArray(statusData?.manualSteps) && statusData.manualSteps.length > 0) {
       renderManualSteps(statusData.manualSteps);
+    }
+    if (Array.isArray(statusData?.formSelectorPlan) && statusData.formSelectorPlan.length > 0) {
+      renderFormSelectorPlan(statusData.formSelectorPlan);
     }
     setStatus('Portal ready');
   } catch (error) {

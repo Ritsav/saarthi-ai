@@ -27,4 +27,20 @@ export const listDocumentsQuerySchema = z.object({
   process_type: z.preprocess(emptyStringToUndefined, z.nativeEnum(ProcessType).optional()),
   status: z.preprocess(emptyStringToUndefined, z.nativeEnum(DocumentStatus).optional()),
   chat_id: z.preprocess(emptyStringToUndefined, z.string().uuid().optional()),
+  include_mock: z
+    .preprocess((value) => {
+      if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (normalized === 'true') {
+          return true;
+        }
+
+        if (normalized === 'false') {
+          return false;
+        }
+      }
+
+      return value;
+    }, z.boolean().optional())
+    .default(false),
 });

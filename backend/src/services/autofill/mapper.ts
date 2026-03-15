@@ -12,6 +12,7 @@ interface SourceDocumentSnapshot {
 export interface MappedField {
   key: string;
   selector: string;
+  selectors?: string[];
   value: string;
   sourceDocumentId?: string;
   confidence?: number;
@@ -157,6 +158,7 @@ export const autofillMapper = {
       fields.push({
         key: mapping.key,
         selector: mapping.selector,
+        selectors: mapping.selectors,
         value,
         sourceDocumentId: sourceDocument.id,
         confidence: typeof confidenceValue === 'number' ? confidenceValue : undefined,
