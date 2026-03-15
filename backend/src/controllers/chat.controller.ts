@@ -93,17 +93,19 @@ export const chatController = {
     });
 
     let fullResponse = '';
+    let usedFallback = false;
 
     try {
-      for await (const token of echoResponder.streamResponse({
+      for await (const chunk of echoResponder.streamResponse({
         userMessage: parsed.content,
         processType: chat.process_type,
       })) {
         if (disconnected) {
           break;
         }
-        fullResponse += token;
-        sendSSEEvent(res, 'token', { content: token });
+        usedFallback = usedFallback || chunk.fallbackUsed;
+        fullResponse += chunk.content;
+        sendSSEEvent(res, 'token', { content: chunk.content });
       }
     } catch (error) {
       sendSSEEvent(res, 'error', {
@@ -116,6 +118,8 @@ export const chatController = {
       const saved = await chatService.saveAssistantMessage(chatId, fullResponse, {
         responder: echoResponder.name,
         phase: 'phase-4-chat-core',
+        llm_provider: 'gemini',
+        fallback_used: usedFallback,
       });
 
       if (!disconnected) {

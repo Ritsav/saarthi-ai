@@ -200,4 +200,18 @@ export const chatService = {
       },
     });
   },
+
+  async getLatestAssistantMessage(chatId: string) {
+    return prisma.message.findFirst({
+      where: {
+        chat_id: chatId,
+        role: MessageRole.assistant,
+      },
+      orderBy: { created_at: 'desc' },
+      select: {
+        id: true,
+        metadata: true,
+      },
+    });
+  },
 };
