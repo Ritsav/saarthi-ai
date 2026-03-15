@@ -164,6 +164,106 @@ async function getPortalAutofill(portalKey) {
   return payload.data;
 }
 
+async function getDocumentBinary(documentId, token) {
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/document/${documentId}/file`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to download file for document ${documentId}`);
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const contentType = response.headers.get('content-type') || 'application/octet-stream';
+
+  const disposition = response.headers.get('content-disposition') || '';
+  let name = 'document-upload';
+  const match = disposition.match(/filename="?([^";]+)"?/i);
+  if (match?.[1]) {
+    name = match[1];
+  }
+
+  return {
+    url,
+    type: contentType,
+    name,
+  };
+}
+
+async function attachGuessedPassportFiles(autofillPayload) {
+  if (!autofillPayload || autofillPayload.portalKey !== 'nepal_passport') {
+    return autofillPayload;
+  }
+
+  const token = await getToken();
+  if (!token) {
+    return autofillPayload;
+  }
+
+  const apiBaseUrl = await getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/document?process_type=PASSPORT_APPLICATION&limit=50`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    return autofillPayload;
+  }
+
+  const listPayload = await response.json();
+  const documents = listPayload?.data?.documents;
+  if (!Array.isArray(documents)) {
+    return autofillPayload;
+  }
+
+  const citizenshipDocs = documents.filter(
+    (document) => document?.document_type === 'CITIZENSHIP'
+  );
+
+  if (citizenshipDocs.length === 0) {
+    return autofillPayload;
+  }
+
+  const uploadedFiles = [];
+  const fileFields = [
+    {
+      key: 'citizenship_front',
+      selector:
+        "input[type='file'][formcontrolname='citizenshipFront'], input[type='file'][name='citizenshipFront']",
+    },
+    {
+      key: 'citizenship_back',
+      selector:
+        "input[type='file'][formcontrolname='citizenshipBack'], input[type='file'][name='citizenshipBack']",
+    },
+  ];
+
+  const frontDoc = citizenshipDocs[0];
+  const fileBlob = await getDocumentBinary(frontDoc.id, token).catch(() => null);
+  if (fileBlob) {
+    uploadedFiles.push({
+      key: 'citizenship_front',
+      ...fileBlob,
+    });
+    uploadedFiles.push({
+      key: 'citizenship_back',
+      ...fileBlob,
+    });
+  }
+
+  return {
+    ...autofillPayload,
+    fileFields,
+    uploadedFiles,
+  };
+}
+
 async function getPortals() {
   const payload = await requestJson('/api/extension/portals');
   return payload.data;
@@ -174,9 +274,11 @@ async function runFill(tabId, autofillPayload) {
     throw new Error('No active tab available for fill');
   }
 
+  const payloadWithFiles = await attachGuessedPassportFiles(autofillPayload);
+
   const response = await chrome.tabs.sendMessage(tabId, {
     type: 'SAARTHI_FILL_FIELDS',
-    payload: autofillPayload,
+    payload: payloadWithFiles,
   });
 
   return response;

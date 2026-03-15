@@ -31,3 +31,18 @@ This folder contains the Manifest V3 extension for portal auto-detect and form a
 - Fill is user-triggered only (no auto-submit)
 - Missing selectors are reported in popup
 - Requires backend extension APIs under `/api/extension/*`
+
+## Passport Snapshot Findings
+
+From the provided `sample-html` snapshot:
+
+- Form 1 is passport type radio selection (`#PP`, `#PB`, `#PS`, `#PD`, `#PG`, `#PT`, `#PN`)
+- Form 2 is appointment booking (Angular Material `mat-select` controls)
+- Form 3 contains applicant details and citizenship-related fields via `formcontrolname`
+- Form 4 marker exists, but that snapshot content is missing in the file
+
+Because this site is Angular + Material:
+
+- Prefer selectors like `[formcontrolname="firstName"]`
+- For `mat-select`, autofill requires click + overlay option selection (implemented in `content.js`)
+- Captcha/submit remain manual

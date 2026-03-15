@@ -14,6 +14,7 @@ export interface PortalFieldMapping {
   selector: string;
   source: string;
   required?: boolean;
+  transform?: 'identity' | 'first_token' | 'rest_tokens';
 }
 
 export interface PortalDefinition {
@@ -22,6 +23,7 @@ export interface PortalDefinition {
   processType: ProcessType;
   urlPatterns: string[];
   fields: PortalFieldMapping[];
+  manualSteps?: string[];
 }
 
 export const portalDefinitions: Record<PortalKey, PortalDefinition> = {
@@ -97,42 +99,81 @@ export const portalDefinitions: Record<PortalKey, PortalDefinition> = {
     urlPatterns: ['https://nepalpassport.gov.np/*', 'https://epassport.immigration.gov.np/*'],
     fields: [
       {
-        key: 'full_name_en',
-        selector: "input[name='fullNameEnglish']",
+        key: 'first_name',
+        selector: "[formcontrolname='firstName']",
         source: 'CITIZENSHIP.fields.name_en',
         required: true,
+        transform: 'first_token',
       },
       {
-        key: 'full_name_ne',
-        selector: "input[name='fullNameNepali']",
-        source: 'CITIZENSHIP.fields.name_ne',
+        key: 'last_name',
+        selector: "[formcontrolname='lastName']",
+        source: 'CITIZENSHIP.fields.name_en',
+        required: true,
+        transform: 'rest_tokens',
       },
       {
         key: 'citizenship_number',
-        selector: "input[name='citizenshipNumber']",
+        selector: "[formcontrolname='citizenNum']",
         source: 'CITIZENSHIP.fields.citizenship_number',
         required: true,
       },
       {
-        key: 'dob',
-        selector: "input[name='dateOfBirth']",
+        key: 'date_of_birth',
+        selector: "[formcontrolname='dateOfBirth']",
         source: 'CITIZENSHIP.fields.date_of_birth',
       },
       {
-        key: 'father_name',
-        selector: "input[name='fatherName']",
-        source: 'CITIZENSHIP.fields.father_name',
+        key: 'citizenship_issue_district',
+        selector: "[formcontrolname='citizenIssuePlaceDistrict']",
+        source: 'CITIZENSHIP.fields.issue_district',
       },
       {
-        key: 'address',
-        selector: "input[name='permanentAddress']",
+        key: 'father_first_name',
+        selector: "[formcontrolname='fatherFirstName']",
+        source: 'CITIZENSHIP.fields.father_name',
+        transform: 'first_token',
+      },
+      {
+        key: 'father_last_name',
+        selector: "[formcontrolname='fatherLastName']",
+        source: 'CITIZENSHIP.fields.father_name',
+        transform: 'rest_tokens',
+      },
+      {
+        key: 'mother_first_name',
+        selector: "[formcontrolname='motherFirstName']",
+        source: 'CITIZENSHIP.fields.mother_name',
+        transform: 'first_token',
+      },
+      {
+        key: 'mother_last_name',
+        selector: "[formcontrolname='motherLastName']",
+        source: 'CITIZENSHIP.fields.mother_name',
+        transform: 'rest_tokens',
+      },
+      {
+        key: 'main_address_street',
+        selector: "[formcontrolname='mainAddressStreetVillage']",
         source: 'CITIZENSHIP.fields.address',
       },
       {
-        key: 'issue_district',
-        selector: "input[name='issueDistrict']",
-        source: 'CITIZENSHIP.fields.issue_district',
+        key: 'contact_street',
+        selector: "[formcontrolname='contactStreetVillage']",
+        source: 'CITIZENSHIP.fields.address',
       },
+      {
+        key: 'nin',
+        selector: "[formcontrolname='nin']",
+        source: 'PAN_CERTIFICATE.fields.pan_number',
+      },
+    ],
+    manualSteps: [
+      'Step 1: Select passport type radio manually (`#PP` for Ordinary 34 pages is common).',
+      'Step 2: Appointment country/province/district/location/timeslot are dynamic and must be selected manually.',
+      "Step 4 (guessed): Set major/minor radio manually (likely field around `isMinor` or labels 'Major'/'Minor').",
+      "Step 4 (guessed): Upload citizenship front/back images manually via file inputs (likely `input[type='file']`).",
+      'Final step: complete captcha manually and click submit.',
     ],
   },
 };

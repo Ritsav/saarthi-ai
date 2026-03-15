@@ -183,6 +183,17 @@ export const documentService = {
     };
   },
 
+  async getDocumentFileForUser(documentId: string, userId: string) {
+    const document = await this.getDocumentForUser(documentId, userId);
+    const absolutePath = storageService.toAbsolutePath(document.file_path);
+
+    return {
+      absolutePath,
+      fileName: document.file_name,
+      fileType: document.file_type,
+    };
+  },
+
   async deleteDocument(documentId: string, userId: string): Promise<void> {
     const document = await this.getDocumentForUser(documentId, userId);
     const absolutePath = storageService.toAbsolutePath(document.file_path);
