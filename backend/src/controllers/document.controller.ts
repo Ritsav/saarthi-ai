@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import fs from 'node:fs';
 import {
   documentIdParamSchema,
   listDocumentsQuerySchema,
@@ -68,6 +69,16 @@ export const documentController = {
 
     await documentService.deleteDocument(id, userId);
     sendSuccess(res, { message: 'Document deleted successfully' });
+  },
+
+  async downloadFile(req: Request, res: Response): Promise<void> {
+    const userId = req.user!.id;
+    const { id } = documentIdParamSchema.parse(req.params);
+
+    const file = await documentService.getDocumentFileForUser(id, userId);
+    res.setHeader('Content-Type', file.fileType);
+    res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+    fs.createReadStream(file.absolutePath).pipe(res);
   },
 
   async analyze(req: Request, res: Response): Promise<void> {

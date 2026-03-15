@@ -47,6 +47,46 @@ function asNonEmptyString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function splitName(value: string): { first: string; rest: string } {
+  const parts = value
+    .split(/\s+/)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+
+  if (parts.length === 0) {
+    return { first: '', rest: '' };
+  }
+
+  if (parts.length === 1) {
+    return { first: parts[0], rest: parts[0] };
+  }
+
+  return {
+    first: parts[0],
+    rest: parts.slice(1).join(' '),
+  };
+}
+
+function applyTransform(
+  value: string,
+  transform: 'identity' | 'first_token' | 'rest_tokens' | undefined
+): string | null {
+  if (!transform || transform === 'identity') {
+    return value;
+  }
+
+  const split = splitName(value);
+  if (transform === 'first_token') {
+    return split.first || null;
+  }
+
+  if (transform === 'rest_tokens') {
+    return split.rest || split.first || null;
+  }
+
+  return value;
+}
+
 function getLowConfidenceFieldSet(validationResult: unknown): Set<string> {
   if (!validationResult || typeof validationResult !== 'object' || Array.isArray(validationResult)) {
     return new Set();
@@ -92,7 +132,10 @@ export const autofillMapper = {
 
       const path = pathParts.join('.');
       const rawValue = readValueByPath(sourceDocument.ocr_result, path);
-      const value = asNonEmptyString(rawValue);
+      const sourceValue = asNonEmptyString(rawValue);
+      const value = sourceValue
+        ? applyTransform(sourceValue, mapping.transform)
+        : null;
 
       if (!value) {
         if (mapping.required) {
