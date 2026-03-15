@@ -1,0 +1,108 @@
+{
+  "app": {
+    "title": "Saarthi AI",
+    "subtitle": "Government Process Copilot",
+    "tagline": "Your intelligent guide to Nepal government services"
+  },
+  "nav": {
+    "chat": "Chat",
+    "documents": "Documents",
+    "dashboard": "Dashboard",
+    "logout": "Logout"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "email": "Email Address",
+    "password": "Password",
+    "name": "Full Name",
+    "login_title": "Welcome Back",
+    "login_subtitle": "Sign in to continue to Saarthi AI",
+    "register_title": "Create Account",
+    "register_subtitle": "Start navigating government processes with AI",
+    "no_account": "Don't have an account?",
+    "has_account": "Already have an account?",
+    "login_error": "Invalid email or password",
+    "register_error": "Registration failed. Please try again.",
+    "logout": "Logout"
+  },
+  "chat": {
+    "placeholder": "Ask about any government process...",
+    "send": "Send",
+    "newChat": "New Chat",
+    "new_chat": "New Chat",
+    "delete_chat": "Delete chat",
+    "no_chats": "No conversations yet",
+    "start_prompt": "What government process can I help you with?",
+    "suggestions": {
+      "company": "Register a company",
+      "pan": "Apply for PAN",
+      "passport": "Get a passport"
+    },
+    "streaming": "Saarthi is thinking...",
+    "error": "Failed to send message. Please try again.",
+    "start_about_process": "Start Chat about this Process"
+  },
+  "document": {
+    "upload": "Upload Document",
+    "uploaded": "Uploaded Documents",
+    "analyze": "Analyze",
+    "re_upload": "Re-upload",
+    "drag_drop": "Drag & drop your documents here, or click to browse",
+    "consent_title": "Document Upload Consent",
+    "consent_description": "Please review and accept before uploading documents.",
+    "consent_checkbox_1": "I consent to AI-powered document analysis",
+    "consent_checkbox_2": "I understand this is a prototype and will verify information independently",
+    "accept": "Accept & Upload",
+    "decline": "Decline",
+    "uploading": "Uploading...",
+    "analyzing": "Analyzing document...",
+    "analysis_complete": "Analysis Complete",
+    "no_documents": "No documents uploaded yet",
+    "delete_confirm": "Are you sure you want to delete this document?"
+  },
+  "process": {
+    "COMPANY_REGISTRATION": "Company Registration",
+    "COMPANY_REGISTRATION_desc": "Register a private or public limited company with OCR",
+    "PAN_REGISTRATION": "PAN Registration",
+    "PAN_REGISTRATION_desc": "Register for Permanent Account Number with IRD",
+    "PASSPORT_APPLICATION": "Passport Application",
+    "PASSPORT_APPLICATION_desc": "Apply for a new passport or renewal"
+  },
+  "readiness": {
+    "score": "Readiness Score",
+    "documents_ready": "documents ready",
+    "required_documents": "Required Documents",
+    "complete": "Complete",
+    "completed": "Complete",
+    "missing": "Missing",
+    "invalid": "Needs Attention",
+    "ready_to_apply": "Ready to Apply!",
+    "not_ready": "Not Ready Yet",
+    "get_portal_link": "Go to Portal",
+    "download_form": "Download Pre-filled Form",
+    "view_details": "View Details"
+  },
+  "speech": {
+    "start": "Start voice input",
+    "stop": "Stop recording",
+    "processing": "Transcribing...",
+    "error_permission": "Microphone permission denied",
+    "error_generic": "Voice input failed"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "retry": "Retry",
+    "search": "Search...",
+    "no_results": "No results found",
+    "disclaimer": "This is a prototype. Always verify with official sources."
+  }
+}
