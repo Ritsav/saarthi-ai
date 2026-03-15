@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { sendSuccess } from '../utils/response';
+import { authController } from '../controllers/auth.controller';
+import { authMiddleware } from '../middleware/auth';
 
 export const authRoutes = Router();
 
-authRoutes.get('/_placeholder', (_req, res) => {
-  sendSuccess(res, { module: 'auth', status: 'phase_pending' });
-});
+authRoutes.post('/register', authController.register);
+authRoutes.post('/login', authController.login);
+authRoutes.get('/me', authMiddleware, authController.me);

@@ -6,6 +6,8 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3001),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
   DATABASE_URL: z.string().optional().default(''),
+  JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
+  JWT_EXPIRES_IN: z.string().default('7d'),
   PINECONE_API_KEY: z.string().optional().default(''),
   PINECONE_INDEX: z.string().default('saarthi-gov-docs'),
   ACTIVE_LLM_PROVIDER: z.enum(['openai', 'anthropic', 'gemini']).default('openai'),
