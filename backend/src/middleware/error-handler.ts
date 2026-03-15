@@ -1,8 +1,29 @@
 import { NextFunction, Request, Response } from 'express';
+import { ZodError } from 'zod';
 import { AppError } from '../utils/errors';
 import { logger } from '../utils/logger';
 
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
+  if (err instanceof ZodError) {
+    logger.warn(
+      {
+        requestId: req.requestId,
+        path: req.path,
+        method: req.method,
+        code: 'VALIDATION_ERROR',
+      },
+      'Request validation failed'
+    );
+
+    res.status(400).json({
+      error: true,
+      message: 'Invalid request input',
+      code: 'VALIDATION_ERROR',
+      details: err.issues,
+    });
+    return;
+  }
+
   if (err instanceof AppError) {
     logger.warn(
       {
