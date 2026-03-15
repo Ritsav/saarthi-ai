@@ -37,6 +37,13 @@ enum DocumentType {
   OTHER
 }
 
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model User {
   id                  String   @id @default(uuid())
   email               String   @unique
@@ -97,9 +104,13 @@ model Document {
   file_size         Int
   document_type     DocumentType @default(OTHER)
   process_type      ProcessType?
+  status            DocumentStatus @default(PENDING)
+  processing_error  String?
   ocr_result        Json?
   validation_result Json?
+  processed_at      DateTime?
   created_at        DateTime     @default(now())
+  updated_at        DateTime     @updatedAt @default(now())
 
   user User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
   chat Chat? @relation(fields: [chat_id], references: [id], onDelete: SetNull)
@@ -108,6 +119,7 @@ model Document {
   @@index([chat_id])
   @@index([process_type])
   @@index([document_type])
+  @@index([status])
   @@map("documents")
 }
 

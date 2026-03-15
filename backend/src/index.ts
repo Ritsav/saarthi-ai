@@ -14,6 +14,9 @@ import { chatRoutes } from './routes/chat.routes';
 import { documentRoutes } from './routes/document.routes';
 import { processRoutes } from './routes/process.routes';
 import { healthRoutes } from './routes/health.routes';
+import { autofillRoutes } from './routes/autofill.routes';
+import { extensionRoutes } from './routes/extension.routes';
+import { startFileCleanupScheduler } from './services/file-cleanup.service';
 
 const app = express();
 
@@ -27,6 +30,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/document', documentRoutes);
 app.use('/api/process', processRoutes);
+app.use('/api/autofill', autofillRoutes);
+app.use('/api/extension', extensionRoutes);
 
 app.get('/api', (_req, res) => {
   res.json({
@@ -34,7 +39,7 @@ app.get('/api', (_req, res) => {
     data: {
       service: 'saarthi-ai-backend',
       status: 'running',
-      phase: 'phase-4-chat-core',
+      phase: 'phase-10-extension-contract',
     },
   });
 });
@@ -43,5 +48,6 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 app.listen(env.PORT, () => {
+  startFileCleanupScheduler();
   logger.info({ port: env.PORT, environment: env.NODE_ENV }, 'Backend server started');
 });

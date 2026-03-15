@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { AppError } from '../utils/errors';
 import { logger } from '../utils/logger';
+import { redactSensitive } from '../utils/redact';
 
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof ZodError) {
@@ -26,13 +27,13 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
 
   if (err instanceof AppError) {
     logger.warn(
-      {
+      redactSensitive({
         requestId: req.requestId,
         path: req.path,
         method: req.method,
         code: err.code,
-      },
-      err.message
+      }),
+      String(redactSensitive(err.message))
     );
 
     res.status(err.statusCode).json({
@@ -45,21 +46,21 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
 
   if (err instanceof Error) {
     logger.error(
-      {
+      redactSensitive({
         requestId: req.requestId,
         path: req.path,
         method: req.method,
         stack: err.stack,
-      },
-      err.message
+      }),
+      String(redactSensitive(err.message))
     );
   } else {
     logger.error(
-      {
+      redactSensitive({
         requestId: req.requestId,
         path: req.path,
         method: req.method,
-      },
+      }),
       'Unknown error'
     );
   }
