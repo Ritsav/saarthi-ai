@@ -34,7 +34,7 @@ app.get('/api', (_req, res) => {
     data: {
       service: 'saarthi-ai-backend',
       status: 'running',
-      phase: 'phase-1-platform-core',
+      phase: 'phase-4-chat-core',
     },
   });
 });
