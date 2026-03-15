@@ -147,6 +147,7 @@ export const autofillService = {
       fields: mapped.fields,
       missingFields: mapped.missingFields,
       warnings: [...new Set(mapped.warnings)],
+      manualSteps: portal.manualSteps ?? [],
       generatedAt: new Date().toISOString(),
     };
   },
@@ -170,6 +171,7 @@ export const autofillService = {
       readinessScore,
       missingFields: mapped.missingFields,
       warnings: [...new Set(mapped.warnings)],
+      manualSteps: portal.manualSteps ?? [],
       updatedAt: new Date().toISOString(),
     };
   },

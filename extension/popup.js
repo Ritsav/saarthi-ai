@@ -210,12 +210,30 @@ async function refreshPortalState() {
     ]);
 
     renderPortalDetails(detectorResult, statusData, autofillData);
+    if (Array.isArray(statusData?.manualSteps) && statusData.manualSteps.length > 0) {
+      renderManualSteps(statusData.manualSteps);
+    }
     setStatus('Portal ready');
   } catch (error) {
     renderPortalDetails(detectorResult, null, null);
     renderFillError(error.message || 'Could not load portal data');
     setStatus('Portal data unavailable');
   }
+}
+
+function renderManualSteps(steps) {
+  if (!Array.isArray(steps) || steps.length === 0) {
+    return;
+  }
+
+  const items = steps.map((step) => `<li>${escapeHtml(step)}</li>`).join('');
+  resultSection.innerHTML = `
+    <div class="stack">
+      <strong>Manual Steps Required</strong>
+      <ul>${items}</ul>
+    </div>
+  `;
+  showElement(resultSection, true);
 }
 
 async function refreshUi() {

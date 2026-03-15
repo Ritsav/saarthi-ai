@@ -26,5 +26,6 @@ documentRoutes.post('/upload', authMiddleware, (req, res, next) => {
 
 documentRoutes.get('/', authMiddleware, documentController.list);
 documentRoutes.get('/:id', authMiddleware, documentController.getById);
+documentRoutes.get('/:id/file', authMiddleware, documentController.downloadFile);
 documentRoutes.delete('/:id', authMiddleware, documentController.remove);
 documentRoutes.post('/:id/analyze', authMiddleware, documentController.analyze);
