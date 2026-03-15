@@ -19,7 +19,7 @@ export function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/chat';
+  const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/dashboard';
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -75,8 +75,9 @@ export function LoginForm() {
       </Button>
 
       <p className="text-center text-sm text-slate-500">
-        {t('auth.no_account')} <Link to="/register" className="text-primary hover:underline">{t('auth.register')}</Link>
+        {t('auth.no_account')} <Link to="/signup" className="text-primary hover:underline">{t('auth.register')}</Link>
       </p>
     </form>
   );
 }
+

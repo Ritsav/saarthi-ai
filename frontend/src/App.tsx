@@ -1,15 +1,19 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import { ChatProvider } from './context/ChatContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { Layout } from './components/layout/Layout';
+import { PassportLayout } from './components/layout/PassportLayout';
+import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import ChatPage from './pages/ChatPage';
 import DashboardPage from './pages/DashboardPage';
+import AssistantPage from './pages/AssistantPage';
 import DocumentsPage from './pages/DocumentsPage';
+import OCRReviewPage from './pages/OCRReviewPage';
+import FormPreviewPage from './pages/FormPreviewPage';
+import ReadinessPage from './pages/ReadinessPage';
+import SettingsPage from './pages/SettingsPage';
 
 function App() {
   return (
@@ -17,24 +21,26 @@ function App() {
       <BrowserRouter>
         <LanguageProvider>
           <AuthProvider>
-            <ChatProvider>
-              <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<RegisterPage />} />
+              <Route path="/register" element={<Navigate to="/signup" replace />} />
 
-                <Route element={<ProtectedRoute />}>
-                  <Route element={<Layout />}>
-                    <Route path="/chat" element={<ChatPage />} />
-                    <Route path="/chat/:chatId" element={<ChatPage />} />
-                    <Route path="/dashboard/:processType" element={<DashboardPage />} />
-                    <Route path="/documents" element={<DocumentsPage />} />
-                  </Route>
+              <Route element={<ProtectedRoute />}>
+                <Route element={<PassportLayout />}>
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/assistant" element={<AssistantPage />} />
+                  <Route path="/documents" element={<DocumentsPage />} />
+                  <Route path="/ocr-review" element={<OCRReviewPage />} />
+                  <Route path="/form-preview" element={<FormPreviewPage />} />
+                  <Route path="/readiness" element={<ReadinessPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
                 </Route>
+              </Route>
 
-                <Route path="/" element={<Navigate to="/chat" replace />} />
-                <Route path="*" element={<Navigate to="/chat" replace />} />
-              </Routes>
-            </ChatProvider>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
           </AuthProvider>
         </LanguageProvider>
       </BrowserRouter>

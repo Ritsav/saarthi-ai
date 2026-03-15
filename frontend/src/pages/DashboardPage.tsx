@@ -1,106 +1,95 @@
-import { Download, ExternalLink, MessageSquare, Upload } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useProcess } from '@/hooks/useProcess';
-import { useDocuments } from '@/hooks/useDocuments';
-import type { ProcessType } from '@/types';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { AlertTriangle, ArrowRight, CheckCircle2, FileText, UploadCloud } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { CommandInput } from '@/components/passport/CommandInput';
+import { ReadinessGauge } from '@/components/passport/ReadinessGauge';
+import { StatusCard } from '@/components/passport/StatusCard';
+import { AlertNotice } from '@/components/passport/AlertNotice';
 import { Button } from '@/components/ui/button';
-import { ReadinessScore } from '@/components/dashboard/ReadinessScore';
-import { RequirementsList } from '@/components/dashboard/RequirementsList';
-import { DocumentCard } from '@/components/document/DocumentCard';
-import { UploadZone } from '@/components/document/UploadZone';
+import { useDocuments } from '@/hooks/useDocuments';
+import { useProcess } from '@/hooks/useProcess';
+import { usePassportFormData } from '@/hooks/usePassportFormData';
 
 export default function DashboardPage() {
-  const { processType: processTypeParam } = useParams<{ processType: string }>();
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-  const { processType, requirements, readinessScore, fees, timeline, portalUrl } = useProcess(processTypeParam);
-  const { documents, uploadDocument } = useDocuments();
+  const { documents } = useDocuments();
+  const { readinessScore, requirements } = useProcess('PASSPORT_APPLICATION');
+  const { missingFields } = usePassportFormData();
 
-  const processDocuments = documents.filter((document) => document.process_type === processType);
+  const passportDocs = documents.filter((doc) => doc.process_type === 'PASSPORT_APPLICATION');
+  const missingDocs = requirements.filter((item) => item.status !== 'completed').length;
+  const issuesFound = missingFields.length + documents.filter((doc) => doc.status === 'error').length;
+  const readyToProceed = readinessScore.score >= 85 && issuesFound <= 1;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold">{t(`process.${processType}`)}</h1>
-        <p className="text-slate-500">{t(`process.${processType}_desc`)}</p>
-      </div>
+    <div className="space-y-6">
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-sm text-slate-500">Welcome back</p>
+        <h1 className="mt-1 text-3xl font-bold text-slate-900">Passport Preparation Dashboard</h1>
+        <p className="mt-2 text-sm text-slate-600">A clear overview of your Nepal passport readiness before official submission.</p>
+        <div className="mt-4">
+          <CommandInput />
+        </div>
+      </section>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <Card className="md:col-span-1">
-          <CardContent className="py-8">
-            <ReadinessScore score={readinessScore.score} complete={readinessScore.complete} total={readinessScore.total} />
-          </CardContent>
-        </Card>
+      <section className="grid gap-4 md:grid-cols-4">
+        <Button asChild variant="outline" className="h-auto justify-start rounded-2xl border-slate-200 py-4">
+          <Link to="/assistant">
+            <CheckCircle2 className="mr-2 h-4 w-4" />
+            Check requirements
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="h-auto justify-start rounded-2xl border-slate-200 py-4">
+          <Link to="/documents">
+            <UploadCloud className="mr-2 h-4 w-4" />
+            Upload citizenship
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="h-auto justify-start rounded-2xl border-slate-200 py-4">
+          <Link to="/documents">
+            <FileText className="mr-2 h-4 w-4" />
+            Upload photo
+          </Link>
+        </Button>
+        <Button asChild className="h-auto justify-start rounded-2xl bg-slate-900 py-4 hover:bg-slate-800">
+          <Link to="/readiness">
+            Review readiness
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
+      </section>
 
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <h3 className="font-semibold">{t('readiness.required_documents')}</h3>
-          </CardHeader>
-          <CardContent>
-            <RequirementsList requirements={requirements} />
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <h3 className="font-semibold">{t('document.uploaded')}</h3>
-          <Button variant="outline" size="sm">
-            <Upload className="mr-2 h-4 w-4" />
-            {t('document.upload')}
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <UploadZone
-            processType={processType as ProcessType}
-            onUpload={async (file, selectedProcessType, onProgress) => {
-              await uploadDocument(file, selectedProcessType, undefined, onProgress);
-            }}
-          />
-
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {processDocuments.map((document) => (
-              <DocumentCard key={document.id} document={document} />
-            ))}
+      <section className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Preparation progress</h2>
+          <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <ReadinessGauge score={readinessScore.score} />
+            <div className="space-y-3 text-sm text-slate-600">
+              <p>Documents uploaded: {passportDocs.length}</p>
+              <p>Checklist complete: {readinessScore.complete}/{readinessScore.total}</p>
+              <p>Current status: {readyToProceed ? 'Ready to proceed' : 'Almost ready'}</p>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      <div className="flex flex-wrap gap-3">
-        <Button className="bg-primary hover:bg-primary-800" onClick={() => window.open(portalUrl, '_blank')}>
-          <ExternalLink className="mr-2 h-4 w-4" />
-          {t('readiness.get_portal_link')}
-        </Button>
-        <Button variant="outline">
-          <Download className="mr-2 h-4 w-4" />
-          {t('readiness.download_form')}
-        </Button>
-        <Button variant="secondary" onClick={() => navigate('/chat')}>
-          <MessageSquare className="mr-2 h-4 w-4" />
-          {t('chat.start_about_process')}
-        </Button>
-      </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+          <StatusCard label="Documents uploaded" value={passportDocs.length} description="Passport-related files" icon={<FileText className="h-4 w-4 text-slate-400" />} />
+          <StatusCard label="Missing items" value={missingDocs} description="Required docs still pending" icon={<AlertTriangle className="h-4 w-4 text-amber-500" />} />
+          <StatusCard label="Issues found" value={issuesFound} description="Fields or validations to review" icon={<AlertTriangle className="h-4 w-4 text-red-500" />} />
+          <StatusCard label="Ready to proceed" value={readyToProceed ? 'Yes' : 'No'} description="Based on current readiness" icon={<CheckCircle2 className="h-4 w-4 text-green-500" />} />
+        </div>
+      </section>
 
-      {fees || timeline ? (
-        <Card>
-          <CardContent className="flex flex-wrap gap-8 py-4">
-            {fees ? (
-              <div>
-                <span className="text-sm text-slate-500">Fees:</span>
-                <span className="ml-2 font-medium">{fees}</span>
-              </div>
-            ) : null}
-            {timeline ? (
-              <div>
-                <span className="text-sm text-slate-500">Est. Time:</span>
-                <span className="ml-2 font-medium">{timeline}</span>
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-      ) : null}
+      <section className="grid gap-4 lg:grid-cols-2">
+        <AlertNotice
+          tone={readyToProceed ? 'success' : 'warning'}
+          title={readyToProceed ? 'You are almost ready to proceed' : 'We found a few things to fix before you continue'}
+          description={readyToProceed ? 'Review final form preview and proceed to official portal.' : 'Complete missing fields and replace unclear files for smoother approval.'}
+        />
+        <AlertNotice
+          tone="info"
+          title="Next recommended action"
+          description={missingDocs > 0 ? 'Upload missing passport documents from My Documents.' : 'Review OCR extracted fields and confirm details.'}
+        />
+      </section>
     </div>
   );
 }

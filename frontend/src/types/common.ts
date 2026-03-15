@@ -1,4 +1,4 @@
-export type ProcessType = 'COMPANY_REGISTRATION' | 'PAN_REGISTRATION' | 'PASSPORT_APPLICATION';
+export type ProcessType = 'PASSPORT_APPLICATION';
 
 export interface User {
   id: string;

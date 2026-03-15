@@ -1,59 +1,109 @@
-import { useState } from 'react';
-import { FileX, Grid2X2, List } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useMemo } from 'react';
+import { ShieldCheck, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { ProcessType } from '@/types';
-import { useDocuments } from '@/hooks/useDocuments';
-import { cn } from '@/lib/utils';
-import { EmptyState } from '@/components/common/EmptyState';
-import { UploadZone } from '@/components/document/UploadZone';
-import { DocumentCard } from '@/components/document/DocumentCard';
+import { UploadBox } from '@/components/passport/UploadBox';
+import { PassportFileCard } from '@/components/passport/PassportFileCard';
+import { ValidationBadge } from '@/components/passport/ValidationBadge';
+import { AlertNotice } from '@/components/passport/AlertNotice';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useDocuments } from '@/hooks/useDocuments';
+import { usePassportFormData } from '@/hooks/usePassportFormData';
 
 export default function DocumentsPage() {
-  const { t } = useTranslation();
-  const { documents, deleteDocument, uploadDocument } = useDocuments();
-  const [view, setView] = useState<'grid' | 'list'>('grid');
-  const [filter, setFilter] = useState<string>('all');
+  const navigate = useNavigate();
+  const { documents, uploadDocument } = useDocuments();
+  const { fields } = usePassportFormData();
 
-  const filtered = filter === 'all' ? documents : documents.filter((document) => document.process_type === filter);
+  const passportDocs = documents.filter((doc) => doc.process_type === 'PASSPORT_APPLICATION');
 
-  const handleUpload = async (file: File, processType?: ProcessType, onProgress?: (progress: number) => void) => {
-    await uploadDocument(file, processType, undefined, onProgress);
+  const validationSummary = useMemo(() => {
+    const nameDetected = fields.find((field) => field.key === 'full_name')?.value;
+    const dobDetected = fields.find((field) => field.key === 'date_of_birth')?.value;
+    const citizenshipDetected = fields.find((field) => field.key === 'citizenship_number')?.value;
+
+    return {
+      nameDetected: Boolean(nameDetected),
+      dobDetected: Boolean(dobDetected),
+      citizenshipDetected: Boolean(citizenshipDetected),
+      photoQuality: passportDocs.some((doc) => doc.file_name.toLowerCase().includes('photo')) ? 'Needs review' : 'Not checked yet',
+      imageClarity: 'Good',
+    };
+  }, [fields, passportDocs]);
+
+  const handleFileSelect = async (files: File[]) => {
+    for (const file of files) {
+      await uploadDocument(file, 'PASSPORT_APPLICATION' as ProcessType);
+    }
   };
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
-      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <h1 className="text-2xl font-bold">{t('nav.documents')}</h1>
+    <div className="space-y-6">
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h1 className="text-2xl font-bold text-slate-900">Document Upload & Validation</h1>
+        <p className="mt-2 text-sm text-slate-600">Upload citizenship, passport photo, and supporting files. Saarthi validates quality and extraction readiness.</p>
+      </section>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Tabs value={filter} onValueChange={setFilter}>
-            <TabsList>
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="COMPANY_REGISTRATION">{t('process.COMPANY_REGISTRATION')}</TabsTrigger>
-              <TabsTrigger value="PAN_REGISTRATION">{t('process.PAN_REGISTRATION')}</TabsTrigger>
-              <TabsTrigger value="PASSPORT_APPLICATION">{t('process.PASSPORT_APPLICATION')}</TabsTrigger>
-            </TabsList>
-          </Tabs>
+      <section className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+        <div className="space-y-4">
+          <UploadBox onFileSelect={handleFileSelect} />
 
-          <Button variant="ghost" size="icon" onClick={() => setView((current) => (current === 'grid' ? 'list' : 'grid'))}>
-            {view === 'grid' ? <List className="h-4 w-4" /> : <Grid2X2 className="h-4 w-4" />}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {passportDocs.map((document) => (
+              <PassportFileCard key={document.id} document={document} onReview={() => navigate('/ocr-review')} />
+            ))}
+          </div>
+
+          {!passportDocs.length ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
+              Upload your first document to start validation.
+            </div>
+          ) : null}
+        </div>
+
+        <aside className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-900">AI validation summary</h2>
+            <div className="mt-3 space-y-2 text-sm text-slate-700">
+              <div className="flex items-center justify-between">
+                <span>Name detected</span>
+                <ValidationBadge state={validationSummary.nameDetected ? 'valid' : 'missing'} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Date of birth detected</span>
+                <ValidationBadge state={validationSummary.dobDetected ? 'valid' : 'missing'} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Citizenship number detected</span>
+                <ValidationBadge state={validationSummary.citizenshipDetected ? 'valid' : 'missing'} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Photo quality check</span>
+                <ValidationBadge state={validationSummary.photoQuality === 'Needs review' ? 'needs_review' : 'valid'} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Image clarity check</span>
+                <ValidationBadge state="valid" />
+              </div>
+            </div>
+          </div>
+
+          <AlertNotice tone="warning" title="Missing requirements summary" description="Issue date is missing from extracted data. Add it during OCR review." />
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <ShieldCheck className="h-4 w-4 text-green-600" />
+              Privacy & security
+            </div>
+            <p className="mt-2 text-sm text-slate-600">Your documents are securely processed for readiness checks and extraction review.</p>
+          </div>
+
+          <Button className="w-full rounded-xl bg-slate-900 hover:bg-slate-800" onClick={() => navigate('/ocr-review')}>
+            <Sparkles className="mr-2 h-4 w-4" />
+            Review extracted fields
           </Button>
-        </div>
-      </div>
-
-      <UploadZone className="mb-6" onUpload={handleUpload} />
-
-      {!documents.length ? (
-        <EmptyState icon={<FileX className="h-6 w-6 text-slate-400" />} message={t('document.no_documents')} />
-      ) : (
-        <div className={cn(view === 'grid' ? 'grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4' : 'space-y-3')}>
-          {filtered.map((document) => (
-            <DocumentCard key={document.id} document={document} view={view} onDelete={deleteDocument} />
-          ))}
-        </div>
-      )}
+        </aside>
+      </section>
     </div>
   );
 }

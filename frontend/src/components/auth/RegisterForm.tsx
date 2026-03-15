@@ -41,7 +41,7 @@ export function RegisterForm() {
     try {
       setIsSubmitting(true);
       await register(email, password, name);
-      navigate('/chat', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (error) {
       if (axios.isAxiosError(error)) {
         if (!error.response) {
