@@ -6,10 +6,21 @@ import { AppError } from '../../utils/errors';
 import { localOCRService } from './local-ocr';
 
 const PREFERRED_VISION_MODELS = [
+  'gemini-2.5-flash',
   'gemini-2.0-flash',
   'gemini-2.0-flash-lite',
   'gemini-1.5-pro',
   'gemini-1.5-flash',
+];
+
+const MODEL_NAME_BLOCKLIST = [
+  /tts/i,
+  /embedding/i,
+  /aqa/i,
+  /transcribe/i,
+  /speech/i,
+  /imagen/i,
+  /veo/i,
 ];
 
 function buildRawTextPrompt(documentType: DocumentType): string {
@@ -32,6 +43,10 @@ export class GeminiVisionService {
     return [...preferred, ...remaining];
   }
 
+  private isModelNameAllowed(modelName: string): boolean {
+    return !MODEL_NAME_BLOCKLIST.some((pattern) => pattern.test(modelName));
+  }
+
   private isRateLimitError(error: unknown): boolean {
     const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
     return (
@@ -40,6 +55,48 @@ export class GeminiVisionService {
       message.includes('quota') ||
       message.includes('rate limit')
     );
+  }
+
+  private isImageModalityError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    return (
+      message.includes('image input modality is not enabled') ||
+      message.includes('input modality') ||
+      message.includes('unsupported modality')
+    );
+  }
+
+  private isTransientModelError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    return (
+      message.includes('404') ||
+      message.includes('not found') ||
+      message.includes('does not exist') ||
+      message.includes('not available')
+    );
+  }
+
+  private supportsImageInput(model: {
+    supportedInputModalities?: string[];
+    inputTokenLimit?: number;
+  }): boolean {
+    const inputModalities = model.supportedInputModalities;
+    if (Array.isArray(inputModalities) && inputModalities.length > 0) {
+      return inputModalities.some((modality) => modality.toUpperCase() === 'IMAGE');
+    }
+
+    return true;
+  }
+
+  private supportsTextOutput(model: {
+    supportedOutputModalities?: string[];
+  }): boolean {
+    const outputModalities = model.supportedOutputModalities;
+    if (Array.isArray(outputModalities) && outputModalities.length > 0) {
+      return outputModalities.some((modality) => modality.toUpperCase() === 'TEXT');
+    }
+
+    return true;
   }
 
   private async resolveModelNames(): Promise<string[]> {
@@ -57,13 +114,18 @@ export class GeminiVisionService {
           models?: Array<{
             name?: string;
             supportedGenerationMethods?: string[];
+            supportedInputModalities?: string[];
+            supportedOutputModalities?: string[];
           }>;
         };
 
         const supported = (payload.models ?? [])
           .filter((model) => (model.supportedGenerationMethods ?? []).includes('generateContent'))
+          .filter((model) => this.supportsImageInput(model))
+          .filter((model) => this.supportsTextOutput(model))
           .map((model) => (model.name ?? '').replace(/^models\//, ''))
-          .filter((name) => name.length > 0);
+          .filter((name) => name.length > 0)
+          .filter((name) => this.isModelNameAllowed(name));
 
         const prioritized = this.prioritizeModels(supported);
         this.resolvedModelNames = prioritized.length > 0 ? prioritized : [...PREFERRED_VISION_MODELS];
@@ -93,6 +155,10 @@ export class GeminiVisionService {
 
     for (const modelName of modelNames) {
       try {
+        if (!this.isModelNameAllowed(modelName)) {
+          continue;
+        }
+
         const model = this.client.getGenerativeModel({ model: modelName });
         const result = await model.generateContent([
           {
@@ -117,7 +183,7 @@ export class GeminiVisionService {
       } catch (error) {
         lastError = error;
 
-        if (!this.isRateLimitError(error)) {
+        if (!this.isRateLimitError(error) && !this.isImageModalityError(error) && !this.isTransientModelError(error)) {
           throw error;
         }
       }
@@ -131,11 +197,14 @@ export class GeminiVisionService {
     }
 
     const details = lastError instanceof Error ? lastError.message : 'Unknown OCR provider failure';
-    throw new AppError(
-      503,
-      'OCR_PROVIDER_RATE_LIMITED',
-      `OCR provider limit reached and local fallback failed: ${details}`
-    );
+    const errorCode = this.isRateLimitError(lastError)
+      ? 'OCR_PROVIDER_RATE_LIMITED'
+      : 'OCR_PROVIDER_FAILED';
+    const message = this.isRateLimitError(lastError)
+      ? `OCR provider limit reached and local fallback failed: ${details}`
+      : `No compatible Gemini vision model succeeded and local fallback failed: ${details}`;
+
+    throw new AppError(503, errorCode, message);
   }
 }
 

@@ -140,12 +140,14 @@ function normalizeDate(value: unknown): string | null {
     return null;
   }
 
-  const components = parseDateComponents(value);
-  if (!components) {
-    return null;
-  }
+  const normalized = normalizeDigits(value).trim();
+  const direct = parseDateComponents(normalized);
+  const embedded =
+    normalized.match(/\b(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{4})\b/)?.[0] ??
+    null;
+  const components = direct ?? (embedded ? parseDateComponents(embedded) : null);
 
-  if (!isValidDateParts(components.year, components.month, components.day)) {
+  if (!components || !isValidDateParts(components.year, components.month, components.day)) {
     return null;
   }
 
@@ -201,6 +203,10 @@ function normalizeCitizenshipPayload(record: UnknownRecord): UnknownRecord {
       address: normalizeText(fields.address),
       photo_detected: parseBooleanish(fields.photo_detected),
       signature_detected: parseBooleanish(fields.signature_detected),
+      likely_citizenship_document: parseBooleanish(fields.likely_citizenship_document),
+      document_title_present: parseBooleanish(fields.document_title_present),
+      official_mark_detected: parseBooleanish(fields.official_mark_detected),
+      appears_full_document: parseBooleanish(fields.appears_full_document),
     },
     confidence: normalizeConfidence(record.confidence),
     raw_text: normalizeText(record.raw_text) ?? undefined,
@@ -218,6 +224,12 @@ function normalizePassportPhotoPayload(record: UnknownRecord): UnknownRecord {
       background_color: normalizeText(fields.background_color),
       resolution_sufficient: parseBooleanish(fields.resolution_sufficient),
       lighting_quality: normalizeText(fields.lighting_quality),
+      single_face: parseBooleanish(fields.single_face),
+      head_covering_absent: parseBooleanish(fields.head_covering_absent),
+      eyes_visible: parseBooleanish(fields.eyes_visible),
+      neutral_expression: parseBooleanish(fields.neutral_expression),
+      glare_absent: parseBooleanish(fields.glare_absent),
+      shadows_absent: parseBooleanish(fields.shadows_absent),
     },
     confidence: normalizeConfidence(record.confidence),
     raw_text: normalizeText(record.raw_text) ?? undefined,

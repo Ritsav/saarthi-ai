@@ -9,7 +9,16 @@ import api from '@/config/api';
 import { useState } from 'react';
 
 export default function FormPreviewPage() {
-  const { values, sections, fieldLabels, setFieldValue, formCompletion, missingFields, isLoading } = usePassportFormData();
+  const {
+    values,
+    sections,
+    fieldLabels,
+    fieldMeta,
+    setFieldValue,
+    formCompletion,
+    missingFields,
+    isLoading,
+  } = usePassportFormData();
   const [exportState, setExportState] = useState<{
     status: 'idle' | 'loading' | 'success' | 'error';
     message: string;
@@ -73,12 +82,60 @@ export default function FormPreviewPage() {
               <div className="grid gap-3 md:grid-cols-2">
                 {section.fields.map((fieldKey) => (
                   <label key={fieldKey} className="space-y-1 text-sm">
-                    <span className="text-slate-600">{fieldLabels[fieldKey] || fieldKey}</span>
-                    <Input
-                      value={values[fieldKey] || ''}
-                      onChange={(event) => setFieldValue(fieldKey, event.target.value)}
-                      className={`rounded-xl ${values[fieldKey] ? 'border-slate-300' : 'border-amber-300 bg-amber-50'}`}
-                    />
+                    <span className="flex items-center gap-2 text-slate-600">
+                      {fieldLabels[fieldKey] || fieldKey}
+                      {fieldMeta[fieldKey]?.approvalRequired ? (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                          approve
+                        </span>
+                      ) : null}
+                    </span>
+
+                    {fieldMeta[fieldKey]?.fieldType === 'radio' &&
+                    Array.isArray(fieldMeta[fieldKey]?.options) &&
+                    fieldMeta[fieldKey].options.length > 0 ? (
+                      <div className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        {fieldMeta[fieldKey].options.map((option) => (
+                          <label
+                            key={`${fieldKey}:${option.value}`}
+                            className="flex cursor-pointer items-center gap-2 text-sm text-slate-700"
+                          >
+                            <input
+                              type="radio"
+                              name={`preview-${fieldKey}`}
+                              value={option.value}
+                              checked={(values[fieldKey] || '') === option.value}
+                              onChange={(event) => setFieldValue(fieldKey, event.target.value)}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ) : fieldMeta[fieldKey]?.fieldType === 'select' ? (
+                      <select
+                        value={values[fieldKey] || ''}
+                        onChange={(event) => setFieldValue(fieldKey, event.target.value)}
+                        className={`h-10 w-full rounded-xl border px-3 text-sm ${
+                          values[fieldKey] ? 'border-slate-300 bg-white' : 'border-amber-300 bg-amber-50'
+                        }`}
+                      >
+                        <option value="">Select an option</option>
+                        {(fieldMeta[fieldKey]?.options || []).map((option) => (
+                          <option key={`${fieldKey}:${option.value}`} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <Input
+                        type={fieldMeta[fieldKey]?.fieldType === 'date' ? 'date' : 'text'}
+                        value={values[fieldKey] || ''}
+                        onChange={(event) => setFieldValue(fieldKey, event.target.value)}
+                        className={`rounded-xl ${
+                          values[fieldKey] ? 'border-slate-300' : 'border-amber-300 bg-amber-50'
+                        }`}
+                      />
+                    )}
                   </label>
                 ))}
               </div>
@@ -145,4 +202,3 @@ export default function FormPreviewPage() {
     </div>
   );
 }
-

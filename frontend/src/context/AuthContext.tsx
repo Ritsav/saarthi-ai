@@ -11,7 +11,17 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    name: string,
+    profile?: {
+      contact_number?: string;
+      home_phone?: string;
+      contact_phone?: string;
+      contact_email?: string;
+    }
+  ) => Promise<void>;
   logout: () => void;
 }
 
@@ -65,12 +75,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ user, token, isAuthenticated: true, isLoading: false });
   }, []);
 
-  const register = useCallback(async (email: string, password: string, name: string) => {
-    const response = await api.post('/api/auth/register', { email, password, name });
-    const { token, user } = parseAuthPayload(response.data);
-    localStorage.setItem('saarthi_token', token);
-    setState({ user, token, isAuthenticated: true, isLoading: false });
-  }, []);
+  const register = useCallback(
+    async (
+      email: string,
+      password: string,
+      name: string,
+      profile?: {
+        contact_number?: string;
+        home_phone?: string;
+        contact_phone?: string;
+        contact_email?: string;
+      }
+    ) => {
+      const response = await api.post('/api/auth/register', { email, password, name, ...profile });
+      const { token, user } = parseAuthPayload(response.data);
+      localStorage.setItem('saarthi_token', token);
+      setState({ user, token, isAuthenticated: true, isLoading: false });
+    },
+    []
+  );
 
   const logout = useCallback(() => {
     localStorage.removeItem('saarthi_token');

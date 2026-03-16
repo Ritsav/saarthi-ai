@@ -47,12 +47,148 @@ function formatTimestamp(value: string): string {
   }).format(new Date(value));
 }
 
+function toArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+}
+
+function getErrorMessage(error: unknown): string {
+  if (typeof error === 'object' && error !== null) {
+    const maybeAxiosError = error as {
+      response?: {
+        data?: {
+          message?: unknown;
+        };
+      };
+      message?: unknown;
+    };
+
+    if (typeof maybeAxiosError.response?.data?.message === 'string') {
+      return maybeAxiosError.response.data.message;
+    }
+
+    if (typeof maybeAxiosError.message === 'string') {
+      return maybeAxiosError.message;
+    }
+  }
+
+  return 'Upload failed. Please try with a clearer and compliant file.';
+}
+
+async function readImageDimensions(file: File): Promise<{ width: number; height: number } | null> {
+  if (!file.type.startsWith('image/')) {
+    return null;
+  }
+
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      const width = image.naturalWidth;
+      const height = image.naturalHeight;
+      URL.revokeObjectURL(objectUrl);
+      resolve({ width, height });
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(null);
+    };
+
+    image.src = objectUrl;
+  });
+}
+
+async function validateSelectedFile(file: File, documentType: RequiredDocumentType): Promise<string | null> {
+  const extension = file.name.toLowerCase().split('.').pop() || '';
+
+  if (documentType === 'PASSPORT_PHOTO') {
+    const allowed = new Set(['jpg', 'jpeg', 'png']);
+    if (!allowed.has(extension)) {
+      return 'Passport photo must be JPG or PNG.';
+    }
+
+    if (file.size < 25 * 1024) {
+      return 'Passport photo is too small. Upload a clearer high-resolution image.';
+    }
+
+    const dimensions = await readImageDimensions(file);
+    if (!dimensions) {
+      return 'Could not read passport photo dimensions. Please re-upload as JPG/PNG.';
+    }
+
+    if (dimensions.width < 300 || dimensions.height < 380) {
+      return 'Passport photo resolution is too low. Use at least 300x380 pixels.';
+    }
+
+    if (dimensions.width >= dimensions.height) {
+      return 'Passport photo must be portrait orientation.';
+    }
+
+    const ratio = dimensions.width / dimensions.height;
+    if (ratio < 0.68 || ratio > 0.82) {
+      return 'Passport photo aspect ratio should be close to 35:45.';
+    }
+
+    return null;
+  }
+
+  const allowed = new Set(['jpg', 'jpeg', 'png', 'pdf']);
+  if (!allowed.has(extension)) {
+    return 'Citizenship document must be JPG, PNG, or PDF.';
+  }
+
+  if (file.size < 40 * 1024) {
+    return 'Citizenship file is too small to verify. Upload a clearer full document.';
+  }
+
+  if (file.type.startsWith('image/')) {
+    const dimensions = await readImageDimensions(file);
+    if (dimensions && (dimensions.width < 600 || dimensions.height < 400)) {
+      return 'Citizenship image resolution is too low. Upload a clearer full scan/photo.';
+    }
+  }
+
+  return null;
+}
+
+function hasCriticalValidationIssue(document: {
+  status: string;
+  validation_result?: {
+    is_valid?: boolean;
+    fields_invalid?: string[];
+    compliance_failures?: string[];
+  };
+}): boolean {
+  if (document.status !== 'analyzed') {
+    return document.status === 'error';
+  }
+
+  const validation = document.validation_result;
+  return (
+    validation?.is_valid === false ||
+    toArray(validation?.fields_invalid).length > 0 ||
+    toArray(validation?.compliance_failures).length > 0
+  );
+}
+
 function mapDocumentState(
-  status: string
+  document: {
+    status: string;
+    validation_result?: {
+      is_valid?: boolean;
+      fields_invalid?: string[];
+      compliance_failures?: string[];
+    };
+  }
 ): 'valid' | 'needs_review' | 'missing' | 'expired' | 'low_quality' | 'wrong_format' {
-  if (status === 'analyzed') return 'valid';
-  if (status === 'error') return 'needs_review';
-  if (status === 'analyzing') return 'low_quality';
+  if (document.status === 'analyzed') return hasCriticalValidationIssue(document) ? 'needs_review' : 'valid';
+  if (document.status === 'error') return 'needs_review';
+  if (document.status === 'analyzing') return 'low_quality';
   return 'missing';
 }
 
@@ -62,6 +198,11 @@ export default function DocumentsPage() {
   const { fields, refresh: refreshFormData } = usePassportFormData();
   const [isUploading, setIsUploading] = useState(false);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
+  const [uploadFeedback, setUploadFeedback] = useState<{
+    tone: 'info' | 'success' | 'warning';
+    title: string;
+    description: string;
+  } | null>(null);
 
   const passportDocs = documents.filter(
     (doc) =>
@@ -89,9 +230,11 @@ export default function DocumentsPage() {
         ? 'missing'
         : latest.status === 'error'
           ? 'issue'
-          : latest.status === 'analyzed'
+          : latest.status === 'analyzed' && !hasCriticalValidationIssue(latest)
             ? 'verified'
-            : 'analyzing';
+            : latest.status === 'analyzing'
+              ? 'analyzing'
+              : 'issue';
 
       return {
         ...required,
@@ -100,6 +243,8 @@ export default function DocumentsPage() {
       };
     });
   }, [passportDocs]);
+
+  const requiredIssueCount = requiredDocStatus.filter((entry) => entry.state === 'issue').length;
 
   const handleFileSelect = async (
     files: File[],
@@ -110,16 +255,55 @@ export default function DocumentsPage() {
     }
 
     setIsUploading(true);
+    setUploadFeedback(null);
     try {
+      let uploadedCount = 0;
+      const failures: string[] = [];
+
       for (const file of files) {
-        const uploaded = await uploadDocument(
-          file,
-          'PASSPORT_APPLICATION' as ProcessType,
-          documentType
-        );
-        await analyzeDocument(uploaded.id);
+        const localValidationError = await validateSelectedFile(file, documentType);
+        if (localValidationError) {
+          failures.push(`${file.name}: ${localValidationError}`);
+          continue;
+        }
+
+        try {
+          const uploaded = await uploadDocument(
+            file,
+            'PASSPORT_APPLICATION' as ProcessType,
+            documentType
+          );
+          await analyzeDocument(uploaded.id);
+          uploadedCount += 1;
+        } catch (error) {
+          failures.push(`${file.name}: ${getErrorMessage(error)}`);
+        }
       }
       await refreshFormData();
+
+      if (failures.length > 0 && uploadedCount > 0) {
+        setUploadFeedback({
+          tone: 'warning',
+          title: 'Some files were rejected',
+          description: failures.slice(0, 3).join(' | '),
+        });
+        return;
+      }
+
+      if (failures.length > 0) {
+        setUploadFeedback({
+          tone: 'warning',
+          title: 'Upload rejected',
+          description: failures.slice(0, 3).join(' | '),
+        });
+        return;
+      }
+
+      setUploadFeedback({
+        tone: 'success',
+        title: 'Upload and validation complete',
+        description: `${uploadedCount} file(s) uploaded and sent for OCR/compliance checks.`,
+      });
     } finally {
       setIsUploading(false);
     }
@@ -140,6 +324,14 @@ export default function DocumentsPage() {
             tone="info"
             title="System is analyzing uploaded files"
             description="OCR and validation are running. Cards will update with extracted feedback."
+          />
+        ) : null}
+
+        {uploadFeedback ? (
+          <AlertNotice
+            tone={uploadFeedback.tone}
+            title={uploadFeedback.title}
+            description={uploadFeedback.description}
           />
         ) : null}
 
@@ -195,15 +387,30 @@ export default function DocumentsPage() {
           ) : (
             <div className="space-y-3">
               {passportDocs.map((document) => {
-                const issueMessages: string[] = [];
+                const issueMessages = new Set<string>();
                 if (document.status === 'error' && document.processing_error) {
-                  issueMessages.push(document.processing_error);
+                  issueMessages.add(document.processing_error);
+                }
+                if (Array.isArray(document.validation_result?.compliance_failures)) {
+                  for (const failure of document.validation_result.compliance_failures) {
+                    issueMessages.add(failure);
+                  }
                 }
                 if (Array.isArray(document.validation_result?.warnings)) {
-                  issueMessages.push(...document.validation_result!.warnings!);
+                  for (const warning of document.validation_result.warnings) {
+                    issueMessages.add(warning);
+                  }
                 }
-                if (Array.isArray(document.validation_result?.fields_invalid) && document.validation_result!.fields_invalid!.length > 0) {
-                  issueMessages.push(`Invalid fields: ${document.validation_result!.fields_invalid!.join(', ')}`);
+                if (Array.isArray(document.validation_result?.fields_missing) && document.validation_result.fields_missing.length > 0) {
+                  issueMessages.add(`Missing checks: ${document.validation_result.fields_missing.join(', ')}`);
+                }
+                if (Array.isArray(document.validation_result?.fields_invalid) && document.validation_result.fields_invalid.length > 0) {
+                  issueMessages.add(`Invalid checks: ${document.validation_result.fields_invalid.join(', ')}`);
+                }
+                if (Array.isArray(document.validation_result?.suggestions)) {
+                  for (const suggestion of document.validation_result.suggestions) {
+                    issueMessages.add(`Suggestion: ${suggestion}`);
+                  }
                 }
 
                 const extractedName = document.ocr_preview?.name || 'Not extracted';
@@ -230,7 +437,7 @@ export default function DocumentsPage() {
                               Uploaded {formatTimestamp(document.created_at)}
                             </p>
                           </div>
-                          <ValidationBadge state={mapDocumentState(document.status)} />
+                          <ValidationBadge state={mapDocumentState(document)} />
                         </div>
 
                         <div className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -272,16 +479,40 @@ export default function DocumentsPage() {
                               const file = event.target.files?.[0];
                               if (!file) return;
 
+                              const replacementType =
+                                (document.document_type as RequiredDocumentType) || 'CITIZENSHIP';
+                              const localValidationError = await validateSelectedFile(file, replacementType);
+                              if (localValidationError) {
+                                setUploadFeedback({
+                                  tone: 'warning',
+                                  title: 'Replacement rejected',
+                                  description: `${file.name}: ${localValidationError}`,
+                                });
+                                event.target.value = '';
+                                return;
+                              }
+
                               setActiveDocumentId(document.id);
                               try {
                                 const uploaded = await uploadDocument(
                                   file,
                                   'PASSPORT_APPLICATION' as ProcessType,
-                                  (document.document_type as RequiredDocumentType) || 'CITIZENSHIP'
+                                  replacementType
                                 );
                                 await analyzeDocument(uploaded.id);
                                 await deleteDocument(document.id);
                                 await refreshFormData();
+                                setUploadFeedback({
+                                  tone: 'success',
+                                  title: 'Document replaced',
+                                  description: `${file.name} passed upload checks and was re-analyzed.`,
+                                });
+                              } catch (error) {
+                                setUploadFeedback({
+                                  tone: 'warning',
+                                  title: 'Replacement failed',
+                                  description: `${file.name}: ${getErrorMessage(error)}`,
+                                });
                               } finally {
                                 setActiveDocumentId(null);
                                 event.target.value = '';
@@ -319,13 +550,13 @@ export default function DocumentsPage() {
                           </Button>
                         </div>
 
-                        {issueMessages.length > 0 ? (
+                        {issueMessages.size > 0 ? (
                           <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
                             <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-800">
                               Issue Details
                             </p>
                             <ul className="space-y-1 text-sm text-amber-900">
-                              {issueMessages.map((message, index) => (
+                              {[...issueMessages].map((message, index) => (
                                 <li key={`${document.id}-issue-${index}`} className="flex gap-2">
                                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                                   <span>{message}</span>
@@ -346,12 +577,18 @@ export default function DocumentsPage() {
 
       <section className="grid gap-4 lg:grid-cols-[1fr_auto]">
         <AlertNotice
-          tone={validationSummary.completed === validationSummary.total ? 'success' : 'warning'}
+          tone={
+            requiredIssueCount > 0 || validationSummary.completed !== validationSummary.total
+              ? 'warning'
+              : 'success'
+          }
           title="System feedback"
           description={
-            validationSummary.completed === validationSummary.total
-              ? 'Required mapped fields are currently populated.'
-              : `${validationSummary.total - validationSummary.completed} mapped required fields still need values.`
+            requiredIssueCount > 0
+              ? `${requiredIssueCount} required document(s) failed compliance checks. Replace them before submission.`
+              : validationSummary.completed === validationSummary.total
+                ? 'Required mapped fields are currently populated and required docs are valid.'
+                : `${validationSummary.total - validationSummary.completed} mapped required fields still need values.`
           }
         />
         <Button className="rounded-xl bg-slate-900 hover:bg-slate-800" onClick={() => navigate('/ocr-review')}>

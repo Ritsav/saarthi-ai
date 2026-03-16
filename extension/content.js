@@ -59,6 +59,31 @@ function findElementForFileField(field) {
 }
 
 function setElementValue(element, value) {
+  if (element instanceof HTMLInputElement && element.type === 'radio') {
+    const candidate = String(value ?? '').trim();
+    const normalizedCandidate = candidate.toLowerCase();
+
+    const matchByValue =
+      element.value.toLowerCase() === normalizedCandidate ||
+      element.id.toLowerCase() === normalizedCandidate;
+
+    let matched = matchByValue;
+    if (!matched && element.id) {
+      const relatedLabel = document.querySelector(`label[for="${CSS.escape(element.id)}"]`);
+      const labelText = (relatedLabel?.textContent || '').trim().toLowerCase();
+      matched = labelText === normalizedCandidate || labelText.includes(normalizedCandidate);
+    }
+
+    if (!matched) {
+      return false;
+    }
+
+    element.checked = true;
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }
+
   if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
     element.value = value;
     element.dispatchEvent(new Event('input', { bubbles: true }));
@@ -139,6 +164,23 @@ function getCandidateValues(field) {
     return normalizeDateFormats(baseValue);
   }
 
+  if (field?.fieldType === 'radio' && Array.isArray(field?.options) && field.options.length > 0) {
+    const raw = typeof baseValue === 'string' ? baseValue : String(baseValue ?? '');
+    const normalizedRaw = raw.trim().toLowerCase();
+
+    const option = field.options.find((item) => {
+      const value = String(item?.value ?? '').trim().toLowerCase();
+      const label = String(item?.label ?? '').trim().toLowerCase();
+      return value === normalizedRaw || label === normalizedRaw;
+    });
+
+    if (option) {
+      return [option.value, option.label];
+    }
+
+    return [raw];
+  }
+
   return [typeof baseValue === 'string' ? baseValue : String(baseValue ?? '')];
 }
 
@@ -198,6 +240,11 @@ async function setFieldBySelector(selector, value) {
   }
 
   if (!isEditableField(element)) {
+    if (element instanceof HTMLInputElement && element.type === 'radio') {
+      const radioResult = setElementValue(element, value);
+      return { status: radioResult ? 'filled' : 'rejected' };
+    }
+
     return { status: 'rejected' };
   }
 

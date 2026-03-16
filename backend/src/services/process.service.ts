@@ -45,6 +45,15 @@ function fieldLabelFromKey(key: string): string {
     .join(' ');
 }
 
+function defaultLabelFromOption(value: string): string {
+  return value
+    .replace(/_/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 function parseReadinessScore(value: unknown): number {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return 0;
@@ -97,6 +106,15 @@ function requiredDocumentTypesForProcess(processType: ProcessType): DocumentType
   const required = new Set<DocumentType>();
 
   for (const field of portal.fields) {
+    if (field.sourceDocumentType) {
+      required.add(field.sourceDocumentType);
+      continue;
+    }
+
+    if (!field.source) {
+      continue;
+    }
+
     const [documentTypeName] = field.source.split('.');
     const documentType = DocumentType[documentTypeName as keyof typeof DocumentType];
     if (documentType) {
@@ -211,21 +229,31 @@ export const processService = {
           value: string;
           confidence: number | null;
           status: 'mapped' | 'missing';
+          field_type: 'text' | 'date' | 'radio' | 'select';
+          options: Array<{
+            value: string;
+            label: string;
+            selector?: string;
+          }>;
+          approval_required: boolean;
+          form_step: 'form_1' | 'form_2' | 'form_3' | 'form_4' | 'form_5';
+          section_title: string;
         }>;
       }
     >();
 
     const fields = portal.fields.map((field) => {
       const mapped = mappedByKey.get(field.key);
-      const [sourceDocumentType, ...sourcePathParts] = field.source.split('.');
+      const [sourceDocumentType = 'MANUAL', ...sourcePathParts] = (field.source ?? 'MANUAL').split('.');
       const sourceField = sourcePathParts.join('.');
-      const sectionId = sourceDocumentType.toLowerCase();
+      const sectionTitle = field.sectionTitle ?? `${toTitleCase(sourceDocumentType)} Fields`;
+      const sectionId = sectionTitle.toLowerCase().replace(/\s+/g, '_');
 
       const hydratedField = {
         key: field.key,
         label: fieldLabelFromKey(field.key),
         required: Boolean(field.required),
-        source: field.source,
+        source: field.source ?? 'MANUAL',
         source_document_type: sourceDocumentType,
         source_field: sourceField,
         selector: field.selector,
@@ -233,12 +261,22 @@ export const processService = {
         value: mapped?.value ?? '',
         confidence: typeof mapped?.confidence === 'number' ? mapped.confidence : null,
         status: mapped?.value ? ('mapped' as const) : ('missing' as const),
+        field_type: field.fieldType ?? 'text',
+        options:
+          field.options?.map((option) => ({
+            value: option.value,
+            label: option.label || defaultLabelFromOption(option.value),
+            selector: option.selector,
+          })) ?? [],
+        approval_required: Boolean(field.approvalRequired),
+        form_step: field.formStep ?? 'form_3',
+        section_title: sectionTitle,
       };
 
       if (!sectionMap.has(sectionId)) {
         sectionMap.set(sectionId, {
           id: sectionId,
-          title: `${toTitleCase(sourceDocumentType)} Fields`,
+          title: sectionTitle,
           fields: [],
         });
       }

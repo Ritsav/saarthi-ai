@@ -18,8 +18,20 @@ export interface SafeUser {
   id: string;
   email: string;
   name: string;
+  contact_number: string | null;
+  home_phone: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
   language_preference: string;
   created_at: Date;
+}
+
+export interface UserProfileUpdateInput {
+  language_preference?: 'en' | 'ne';
+  contact_number?: string;
+  home_phone?: string;
+  contact_phone?: string;
+  contact_email?: string;
 }
 
 export const authService = {
@@ -46,7 +58,12 @@ export const authService = {
     return jwt.verify(token, env.JWT_SECRET) as TokenPayload;
   },
 
-  async register(email: string, password: string, name: string): Promise<{ token: string; user: SafeUser }> {
+  async register(
+    email: string,
+    password: string,
+    name: string,
+    profile?: Omit<UserProfileUpdateInput, 'language_preference'>
+  ): Promise<{ token: string; user: SafeUser }> {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       throw new AppError(409, 'EMAIL_EXISTS', 'An account with this email already exists');
@@ -54,11 +71,23 @@ export const authService = {
 
     const hashedPassword = await this.hashPassword(password);
     const user = await prisma.user.create({
-      data: { email, password: hashedPassword, name },
+      data: {
+        email,
+        password: hashedPassword,
+        name,
+        contact_number: profile?.contact_number,
+        home_phone: profile?.home_phone,
+        contact_phone: profile?.contact_phone,
+        contact_email: profile?.contact_email?.toLowerCase(),
+      },
       select: {
         id: true,
         email: true,
         name: true,
+        contact_number: true,
+        home_phone: true,
+        contact_phone: true,
+        contact_email: true,
         language_preference: true,
         created_at: true,
       },
@@ -86,6 +115,10 @@ export const authService = {
         id: user.id,
         email: user.email,
         name: user.name,
+        contact_number: user.contact_number,
+        home_phone: user.home_phone,
+        contact_phone: user.contact_phone,
+        contact_email: user.contact_email,
         language_preference: user.language_preference,
         created_at: user.created_at,
       },
@@ -99,6 +132,34 @@ export const authService = {
         id: true,
         email: true,
         name: true,
+        contact_number: true,
+        home_phone: true,
+        contact_phone: true,
+        contact_email: true,
+        language_preference: true,
+        created_at: true,
+      },
+    });
+  },
+
+  async updateUserProfile(userId: string, input: UserProfileUpdateInput): Promise<SafeUser> {
+    return prisma.user.update({
+      where: { id: userId },
+      data: {
+        language_preference: input.language_preference,
+        contact_number: input.contact_number,
+        home_phone: input.home_phone,
+        contact_phone: input.contact_phone,
+        contact_email: input.contact_email?.toLowerCase(),
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        contact_number: true,
+        home_phone: true,
+        contact_phone: true,
+        contact_email: true,
         language_preference: true,
         created_at: true,
       },

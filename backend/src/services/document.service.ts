@@ -25,6 +25,7 @@ interface ListDocumentsInput {
   processType?: ProcessType;
   status?: DocumentStatus;
   chatId?: string;
+  includeMockFiles?: boolean;
 }
 
 function extractReadinessScore(value: Prisma.JsonValue | null): number | null {
@@ -45,6 +46,7 @@ function extractReadinessScore(value: Prisma.JsonValue | null): number | null {
 }
 
 function extractOCRPreview(value: Prisma.JsonValue | null): Record<string, string | null> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return null;
   }
 
@@ -129,6 +131,7 @@ export const documentService = {
       ...(input.processType ? { process_type: input.processType } : {}),
       ...(input.status ? { status: input.status } : {}),
       ...(input.chatId ? { chat_id: input.chatId } : {}),
+      ...(input.includeMockFiles ? {} : { file_path: { not: { startsWith: 'seed/' } } }),
     };
 
     const [total, documents] = await Promise.all([

@@ -9,11 +9,15 @@ export interface ExtractedField {
 }
 
 export interface DocumentAnalysis {
+  is_valid?: boolean;
   fields?: ExtractedField[];
   warnings?: string[];
   suggestions?: string[];
   readiness_score?: number;
+  fields_missing?: string[];
   fields_invalid?: string[];
+  low_confidence_fields?: string[];
+  compliance_failures?: string[];
 }
 
 export interface OCRPreview {

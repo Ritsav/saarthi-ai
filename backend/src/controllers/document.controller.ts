@@ -6,6 +6,7 @@ import {
   uploadDocumentBodySchema,
 } from '../schemas/document.schema';
 import { documentService } from '../services/document.service';
+import { documentUploadValidationService } from '../services/document-upload-validation.service';
 import { storageService } from '../services/storage.service';
 import { ocrProcessor } from '../services/ocr/processor';
 import { sendSuccess } from '../utils/response';
@@ -36,6 +37,13 @@ export const documentController = {
 
     if (!req.file) {
       throw new AppError(400, 'DOCUMENT_REQUIRED', 'A document file is required');
+    }
+
+    try {
+      await documentUploadValidationService.validate(req.file, parsedBody.document_type);
+    } catch (error) {
+      await storageService.removeFileIfExists(req.file.path);
+      throw error;
     }
 
     let document;

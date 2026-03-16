@@ -45,6 +45,10 @@ model User {
   email               String   @unique
   password            String
   name                String
+  contact_number      String?
+  home_phone          String?
+  contact_phone       String?
+  contact_email       String?
   language_preference String   @default("en")
   created_at          DateTime @default(now())
   updated_at          DateTime @updatedAt

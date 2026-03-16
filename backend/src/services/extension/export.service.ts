@@ -8,6 +8,15 @@ interface ExportFieldPayload {
   selector: string;
   selectors: string[];
   value: string;
+  fieldType?: 'text' | 'date' | 'radio' | 'select';
+  options?: Array<{
+    value: string;
+    label: string;
+    selector?: string;
+  }>;
+  approvalRequired?: boolean;
+  formStep?: 'form_1' | 'form_2' | 'form_3' | 'form_4' | 'form_5';
+  sectionTitle?: string;
 }
 
 interface ExportPayload {
@@ -30,6 +39,15 @@ interface AutofillPayload {
     selector: string;
     selectors?: string[];
     value: string;
+    fieldType?: 'text' | 'date' | 'radio' | 'select';
+    options?: Array<{
+      value: string;
+      label: string;
+      selector?: string;
+    }>;
+    approvalRequired?: boolean;
+    formStep?: 'form_1' | 'form_2' | 'form_3' | 'form_4' | 'form_5';
+    sectionTitle?: string;
     sourceDocumentId?: string;
     confidence?: number;
   }>;
@@ -47,6 +65,30 @@ interface AutofillPayload {
 
 function toJsonValue(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function normalizeFieldType(value: unknown): 'text' | 'date' | 'radio' | 'select' | undefined {
+  if (value === 'text' || value === 'date' || value === 'radio' || value === 'select') {
+    return value;
+  }
+
+  return undefined;
+}
+
+function normalizeFormStep(
+  value: unknown
+): 'form_1' | 'form_2' | 'form_3' | 'form_4' | 'form_5' | undefined {
+  if (
+    value === 'form_1' ||
+    value === 'form_2' ||
+    value === 'form_3' ||
+    value === 'form_4' ||
+    value === 'form_5'
+  ) {
+    return value;
+  }
+
+  return undefined;
 }
 
 function parsePayload(value: Prisma.JsonValue | null): ExportPayload | null {
@@ -67,14 +109,36 @@ function parsePayload(value: Prisma.JsonValue | null): ExportPayload | null {
     .filter((field): field is Record<string, unknown> => {
       return Boolean(field && typeof field === 'object' && !Array.isArray(field));
     })
-    .map((field) => ({
-      key: String(field.key ?? ''),
-      selector: String(field.selector ?? ''),
-      selectors: Array.isArray(field.selectors)
-        ? field.selectors.map((item) => String(item))
-        : [],
-      value: String(field.value ?? ''),
-    }))
+      .map((field) => ({
+        key: String(field.key ?? ''),
+        selector: String(field.selector ?? ''),
+        selectors: Array.isArray(field.selectors)
+          ? field.selectors.map((item) => String(item))
+          : [],
+        value: String(field.value ?? ''),
+        fieldType: normalizeFieldType(field.fieldType),
+        options: Array.isArray(field.options)
+          ? field.options
+              .filter((option): option is Record<string, unknown> =>
+                Boolean(option && typeof option === 'object' && !Array.isArray(option))
+              )
+              .map((option) => ({
+                value: String(option.value ?? ''),
+                label: String(option.label ?? ''),
+                selector:
+                  typeof option.selector === 'string' && option.selector.trim().length > 0
+                    ? option.selector
+                    : undefined,
+              }))
+          : undefined,
+        approvalRequired:
+          typeof field.approvalRequired === 'boolean' ? field.approvalRequired : undefined,
+        formStep: normalizeFormStep(field.formStep),
+        sectionTitle:
+          typeof field.sectionTitle === 'string' && field.sectionTitle.trim().length > 0
+            ? field.sectionTitle
+            : undefined,
+      }))
     .filter((field) => field.key.trim().length > 0);
 
   return {
@@ -121,6 +185,11 @@ export const extensionExportService = {
           selector: mapping.selector,
           selectors: mapping.selectors ?? [mapping.selector],
           value,
+          fieldType: normalizeFieldType(mapping.fieldType),
+          options: mapping.options,
+          approvalRequired: mapping.approvalRequired,
+          formStep: normalizeFormStep(mapping.formStep),
+          sectionTitle: mapping.sectionTitle,
         };
       })
       .filter((field) => field.value.length > 0);
@@ -204,6 +273,14 @@ export const extensionExportService = {
           value: exportedField.value,
           selector: exportedField.selector || existing.selector,
           selectors: exportedField.selectors?.length ? exportedField.selectors : existing.selectors,
+          fieldType: exportedField.fieldType ?? existing.fieldType,
+          options: exportedField.options?.length ? exportedField.options : existing.options,
+          approvalRequired:
+            typeof exportedField.approvalRequired === 'boolean'
+              ? exportedField.approvalRequired
+              : existing.approvalRequired,
+          formStep: exportedField.formStep ?? existing.formStep,
+          sectionTitle: exportedField.sectionTitle ?? existing.sectionTitle,
         });
       } else {
         mergedByKey.set(exportedField.key, {
@@ -211,6 +288,11 @@ export const extensionExportService = {
           selector: exportedField.selector,
           selectors: exportedField.selectors,
           value: exportedField.value,
+          fieldType: exportedField.fieldType,
+          options: exportedField.options,
+          approvalRequired: exportedField.approvalRequired,
+          formStep: exportedField.formStep,
+          sectionTitle: exportedField.sectionTitle,
         });
       }
     }

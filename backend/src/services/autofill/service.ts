@@ -21,6 +21,15 @@ function requiredDocumentTypesForPortal(portal: PortalDefinition): DocumentType[
   const values = new Set<DocumentType>();
 
   for (const field of portal.fields) {
+    if (field.sourceDocumentType) {
+      values.add(field.sourceDocumentType);
+      continue;
+    }
+
+    if (!field.source) {
+      continue;
+    }
+
     const [documentTypeName] = field.source.split('.');
     const value = DocumentType[documentTypeName as keyof typeof DocumentType];
     if (value) {
@@ -103,6 +112,19 @@ async function fetchDocumentsForPortal(
   return normalizeDocuments(documents).filter((document) => document.ocr_result !== null);
 }
 
+async function getUserProfileDefaults(userId: string) {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      email: true,
+      contact_number: true,
+      home_phone: true,
+      contact_phone: true,
+      contact_email: true,
+    },
+  });
+}
+
 function getPortalDefinitionOrThrow(portalKey: PortalKey): PortalDefinition {
   const portal = portalDefinitions[portalKey];
   if (!portal) {
@@ -134,8 +156,9 @@ export const autofillService = {
   ) {
     const portal = getPortalDefinitionOrThrow(portalKey);
     const documents = await fetchDocumentsForPortal(userId, portal, processTypeOverride);
+    const profileDefaults = await getUserProfileDefaults(userId);
 
-    const mapped = autofillMapper.mapPortalFields(portal, documents);
+    const mapped = autofillMapper.mapPortalFields(portal, documents, profileDefaults ?? undefined);
 
     return {
       portalKey: portal.key,
@@ -156,7 +179,8 @@ export const autofillService = {
   async getPortalStatus(userId: string, portalKey: PortalKey, processTypeOverride?: ProcessType) {
     const portal = getPortalDefinitionOrThrow(portalKey);
     const documents = await fetchDocumentsForPortal(userId, portal, processTypeOverride);
-    const mapped = autofillMapper.mapPortalFields(portal, documents);
+    const profileDefaults = await getUserProfileDefaults(userId);
+    const mapped = autofillMapper.mapPortalFields(portal, documents, profileDefaults ?? undefined);
 
     const scores = documents
       .map((document) => parseReadinessScore(document.validation_result))

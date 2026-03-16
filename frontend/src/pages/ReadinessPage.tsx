@@ -7,6 +7,38 @@ import { ReadinessGauge } from '@/components/passport/ReadinessGauge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+function toArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+}
+
+function documentHasComplianceIssue(document: {
+  status: string;
+  validation_result?: {
+    is_valid?: boolean;
+    fields_invalid?: string[];
+    compliance_failures?: string[];
+  };
+}): boolean {
+  if (document.status === 'error') {
+    return true;
+  }
+
+  if (document.status !== 'analyzed') {
+    return false;
+  }
+
+  const validation = document.validation_result;
+  return (
+    validation?.is_valid === false ||
+    toArray(validation?.fields_invalid).length > 0 ||
+    toArray(validation?.compliance_failures).length > 0
+  );
+}
+
 function readinessLabel(score: number) {
   if (score >= 85) return 'Ready to proceed';
   if (score >= 60) return 'Almost ready';
@@ -26,21 +58,23 @@ export default function ReadinessPage() {
 
   const missingRequirements = requirements.filter((item) => item.status === 'missing');
   const invalidRequirements = requirements.filter((item) => item.status === 'invalid');
-  const erroredDocuments = passportDocs.filter((doc) => doc.status === 'error');
-  const analyzedDocuments = passportDocs.filter((doc) => doc.status === 'analyzed');
+  const invalidDocuments = passportDocs.filter((doc) => documentHasComplianceIssue(doc));
+  const compliantDocuments = passportDocs.filter(
+    (doc) => doc.status === 'analyzed' && !documentHasComplianceIssue(doc)
+  );
   const combinedScore = Math.round((readinessScore.score + formCompletion.percentage) / 2) || 82;
 
   const verifiedItems = [
     ...requirements
       .filter((item) => item.status === 'completed')
       .map((item) => `${item.requirement} verified`),
-    ...analyzedDocuments.map((doc) => `${doc.file_name} analyzed`),
+    ...compliantDocuments.map((doc) => `${doc.file_name} compliant`),
     ...(missingFields.length === 0 ? ['All required form fields are filled'] : []),
   ];
 
   const issueItems = [
     ...invalidRequirements.map((item) => `${item.requirement} needs correction`),
-    ...erroredDocuments.map((doc) => `${doc.file_name} failed OCR/validation`),
+    ...invalidDocuments.map((doc) => `${doc.file_name} failed OCR/compliance checks`),
   ];
 
   const missingItems = [
@@ -218,4 +252,3 @@ export default function ReadinessPage() {
     </div>
   );
 }
-

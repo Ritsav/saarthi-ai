@@ -56,6 +56,15 @@ export interface ProcessFormField {
   value: string;
   confidence: number | null;
   status: 'mapped' | 'missing';
+  field_type?: 'text' | 'date' | 'radio' | 'select';
+  options?: Array<{
+    value: string;
+    label: string;
+    selector?: string;
+  }>;
+  approval_required?: boolean;
+  form_step?: 'form_1' | 'form_2' | 'form_3' | 'form_4' | 'form_5';
+  section_title?: string;
 }
 
 export interface ProcessFormSection {

@@ -25,6 +25,15 @@ interface ProcessFormResponseField {
   required: boolean;
   value: string;
   confidence: number | null;
+  field_type?: 'text' | 'date' | 'radio' | 'select';
+  options?: Array<{
+    value: string;
+    label: string;
+    selector?: string;
+  }>;
+  approval_required?: boolean;
+  form_step?: 'form_1' | 'form_2' | 'form_3' | 'form_4' | 'form_5';
+  section_title?: string;
 }
 
 interface ProcessFormResponseSection {
@@ -112,6 +121,18 @@ function buildFallbackState(processType: ProcessType): FormState {
 export function usePassportFormData(processType: ProcessType = 'PASSPORT_APPLICATION') {
   const [state, setState] = useState<FormState>(() => buildFallbackState(processType));
   const [isLoading, setIsLoading] = useState(true);
+  const [fieldMeta, setFieldMeta] = useState<
+    Record<
+      string,
+      {
+        fieldType: 'text' | 'date' | 'radio' | 'select';
+        options: Array<{ value: string; label: string; selector?: string }>;
+        approvalRequired: boolean;
+        formStep: 'form_1' | 'form_2' | 'form_3' | 'form_4' | 'form_5';
+        sectionTitle: string;
+      }
+    >
+  >({});
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
@@ -141,6 +162,30 @@ export function usePassportFormData(processType: ProcessType = 'PASSPORT_APPLICA
         acc[field.key] = field.value;
         return acc;
       }, {});
+
+      const nextMeta = rawFields.reduce<
+        Record<
+          string,
+          {
+            fieldType: 'text' | 'date' | 'radio' | 'select';
+            options: Array<{ value: string; label: string; selector?: string }>;
+            approvalRequired: boolean;
+            formStep: 'form_1' | 'form_2' | 'form_3' | 'form_4' | 'form_5';
+            sectionTitle: string;
+          }
+        >
+      >((acc, rawField) => {
+        acc[rawField.key] = {
+          fieldType: rawField.field_type ?? 'text',
+          options: rawField.options ?? [],
+          approvalRequired: Boolean(rawField.approval_required),
+          formStep: rawField.form_step ?? 'form_3',
+          sectionTitle: rawField.section_title ?? 'Application Fields',
+        };
+        return acc;
+      }, {});
+
+      setFieldMeta(nextMeta);
 
       const sectionBlueprints: SectionBlueprint[] =
         rawSections.length > 0
@@ -317,6 +362,7 @@ export function usePassportFormData(processType: ProcessType = 'PASSPORT_APPLICA
   return {
     fields: state.fields,
     values: state.values,
+    fieldMeta,
     sections,
     fieldLabels,
     isLoading,

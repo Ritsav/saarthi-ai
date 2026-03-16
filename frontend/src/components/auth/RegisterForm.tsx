@@ -16,6 +16,10 @@ export function RegisterForm() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
+  const [homePhone, setHomePhone] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -40,7 +44,12 @@ export function RegisterForm() {
 
     try {
       setIsSubmitting(true);
-      await register(email, password, name);
+      await register(email, password, name, {
+        contact_number: contactNumber.trim() || undefined,
+        home_phone: homePhone.trim() || undefined,
+        contact_phone: contactPhone.trim() || undefined,
+        contact_email: contactEmail.trim() || undefined,
+      });
       navigate('/dashboard', { replace: true });
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -74,6 +83,26 @@ export function RegisterForm() {
       <div className="space-y-1">
         <label className="text-sm font-medium">{t('auth.password')}</label>
         <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-sm font-medium">{t('auth.contact_number')}</label>
+        <Input type="tel" value={contactNumber} onChange={(event) => setContactNumber(event.target.value)} />
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-sm font-medium">{t('auth.home_phone')}</label>
+        <Input type="tel" value={homePhone} onChange={(event) => setHomePhone(event.target.value)} />
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-sm font-medium">{t('auth.contact_phone')}</label>
+        <Input type="tel" value={contactPhone} onChange={(event) => setContactPhone(event.target.value)} />
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-sm font-medium">{t('auth.contact_email')}</label>
+        <Input type="email" value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} />
       </div>
 
       {error ? (

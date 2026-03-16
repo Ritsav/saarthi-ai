@@ -42,7 +42,7 @@ describe('autofillMapper', () => {
 
     const mapped = autofillMapper.mapPortalFields(portal, []);
 
-    expect(mapped.fields.length).toBe(0);
+    expect(mapped.fields.length).toBeGreaterThan(0);
     expect(mapped.missingFields.length).toBeGreaterThan(0);
   });
 
