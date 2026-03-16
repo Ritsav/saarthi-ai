@@ -44,6 +44,37 @@ function extractReadinessScore(value: Prisma.JsonValue | null): number | null {
   return null;
 }
 
+function extractOCRPreview(value: Prisma.JsonValue | null): Record<string, string | null> | null {
+    return null;
+  }
+
+  const root = value as Record<string, unknown>;
+  const fields =
+    root.fields && typeof root.fields === 'object' && !Array.isArray(root.fields)
+      ? (root.fields as Record<string, unknown>)
+      : null;
+
+  if (!fields) {
+    return null;
+  }
+
+  const name = typeof fields.name_en === 'string' ? fields.name_en.trim() : null;
+  const dateOfBirth =
+    typeof fields.date_of_birth === 'string' ? fields.date_of_birth.trim() : null;
+  const citizenshipNumber =
+    typeof fields.citizenship_number === 'string' ? fields.citizenship_number.trim() : null;
+
+  if (!name && !dateOfBirth && !citizenshipNumber) {
+    return null;
+  }
+
+  return {
+    name: name || null,
+    date_of_birth: dateOfBirth || null,
+    citizenship_number: citizenshipNumber || null,
+  };
+}
+
 function toJsonValue(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
@@ -137,6 +168,8 @@ export const documentService = {
         processing_error: document.processing_error,
         has_ocr_result: document.ocr_result !== null,
         readiness_score: extractReadinessScore(document.validation_result),
+        ocr_preview: extractOCRPreview(document.ocr_result),
+        validation_result: document.validation_result,
         created_at: document.created_at,
         processed_at: document.processed_at,
         updated_at: document.updated_at,

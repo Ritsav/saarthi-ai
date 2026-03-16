@@ -13,6 +13,13 @@ export interface DocumentAnalysis {
   warnings?: string[];
   suggestions?: string[];
   readiness_score?: number;
+  fields_invalid?: string[];
+}
+
+export interface OCRPreview {
+  name?: string | null;
+  date_of_birth?: string | null;
+  citizenship_number?: string | null;
 }
 
 export interface DocumentItem {
@@ -24,6 +31,7 @@ export interface DocumentItem {
   document_type?: string;
   status: DocumentStatus;
   processing_error?: string | null;
+  ocr_preview?: OCRPreview | null;
   created_at: string;
   preview_url?: string;
   thumbnail_url?: string;

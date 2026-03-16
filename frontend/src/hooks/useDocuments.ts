@@ -38,6 +38,7 @@ function mapDocument(raw: any): DocumentItem {
     document_type: raw.document_type,
     status: mappedStatus || (hasAnalysis ? 'analyzed' : 'pending'),
     processing_error: raw.processing_error || null,
+    ocr_preview: raw.ocr_preview || null,
     created_at: raw.created_at,
     thumbnail_url: raw.thumbnail_url,
     preview_url: raw.preview_url,

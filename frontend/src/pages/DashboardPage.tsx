@@ -1,192 +1,200 @@
 import { AlertTriangle, ArrowRight, CheckCircle2, FileText, UploadCloud } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { CommandInput } from '@/components/passport/CommandInput';
-import { ReadinessGauge } from '@/components/passport/ReadinessGauge';
 import { StatusCard } from '@/components/passport/StatusCard';
-import { AlertNotice } from '@/components/passport/AlertNotice';
-import { Button } from '@/components/ui/button';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useProcess } from '@/hooks/useProcess';
 import { usePassportFormData } from '@/hooks/usePassportFormData';
 import { cn } from '@/lib/utils';
 
-function requirementChipClass(status: 'completed' | 'missing' | 'invalid') {
-  if (status === 'completed') {
-    return 'bg-green-50 text-green-700 border-green-200';
-  }
-
-  if (status === 'invalid') {
-    return 'bg-red-50 text-red-700 border-red-200';
-  }
-
-  return 'bg-amber-50 text-amber-700 border-amber-200';
-}
-
-function requirementStatusLabel(status: 'completed' | 'missing' | 'invalid') {
-  if (status === 'completed') {
-    return 'Completed';
-  }
-
-  if (status === 'invalid') {
-    return 'Invalid';
-  }
-
-  return 'Missing';
-}
-
 export default function DashboardPage() {
   const { documents } = useDocuments();
-  const { readinessScore, requirements, processInfo, isLoading } = useProcess('PASSPORT_APPLICATION');
-  const { missingFields, formCompletion } = usePassportFormData();
+  const { readinessScore, requirements, processInfo } = useProcess('PASSPORT_APPLICATION');
+  const { missingFields } = usePassportFormData();
 
   const passportDocs = documents.filter(
     (doc) =>
       doc.process_type === 'PASSPORT_APPLICATION' &&
       (doc.document_type === 'CITIZENSHIP' || doc.document_type === 'PASSPORT_PHOTO')
   );
-  const missingRequirements = requirements.filter((item) => item.status === 'missing');
+  
   const invalidRequirements = requirements.filter((item) => item.status === 'invalid');
   const documentErrors = passportDocs.filter((doc) => doc.status === 'error').length;
+  
+  // Metrics computation
   const issuesFound = missingFields.length + invalidRequirements.length + documentErrors;
-  const readyToProceed = requirements.length > 0 && missingRequirements.length === 0 && issuesFound === 0;
-
+  const readyToProceed = requirements.length > 0 && issuesFound === 0 && readinessScore.score === 100;
   const processName = processInfo?.name || 'Passport Application';
-  const processDescription =
-    processInfo?.description || 'Track checklist, OCR extraction, and form readiness from backend data.';
-  const nextRequirement = missingRequirements[0] || invalidRequirements[0] || null;
-  const statusSummary = isLoading
-    ? 'Loading process status from backend...'
-    : readyToProceed
-      ? 'Ready to proceed'
-      : nextRequirement
-        ? `Next item: ${nextRequirement.requirement}`
-        : 'Continue reviewing extracted fields';
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-sm text-slate-500">Process overview</p>
-        <h1 className="mt-1 text-3xl font-bold text-slate-900">{processName}</h1>
-        <p className="mt-2 text-sm text-slate-600">{processDescription}</p>
-        <p className="mt-2 text-sm text-slate-700">Current status: {statusSummary}</p>
-        <div className="mt-4">
-          <CommandInput />
-        </div>
-      </section>
+    <div className="relative h-[calc(100vh-112px)] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="grid h-full md:grid-cols-[220px_1fr]">
+        <aside className="hidden border-r border-slate-200 bg-slate-50/70 p-5 md:block">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Navigation</p>
+          <nav className="mt-4 space-y-2 text-sm">
+            <a href="#" className="block rounded-xl border border-slate-200 bg-white px-3 py-2 font-medium text-slate-800 shadow-sm">
+              Overview
+            </a>
+            <a href="#" className="block rounded-xl px-3 py-2 text-slate-600 hover:bg-white hover:text-slate-900 transition-colors">
+              Uploaded Files
+            </a>
+            <a href="#" className="block rounded-xl px-3 py-2 text-slate-600 hover:bg-white hover:text-slate-900 transition-colors">
+              OCR Results
+            </a>
+            <a href="#" className="block rounded-xl px-3 py-2 text-slate-600 hover:bg-white hover:text-slate-900 transition-colors">
+              Form Mapping
+            </a>
+            <a href="#" className="block rounded-xl px-3 py-2 text-slate-600 hover:bg-white hover:text-slate-900 transition-colors">
+              Extension Export
+            </a>
+          </nav>
+        </aside>
 
-      <section className="grid gap-4 md:grid-cols-4">
-        <Button asChild variant="outline" className="h-auto justify-start rounded-2xl border-slate-200 py-4">
-          <Link to="/assistant">
-            <CheckCircle2 className="mr-2 h-4 w-4" />
-            Requirements ({readinessScore.complete}/{readinessScore.total})
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className="h-auto justify-start rounded-2xl border-slate-200 py-4">
-          <Link to="/documents">
-            <UploadCloud className="mr-2 h-4 w-4" />
-            Upload documents ({passportDocs.length})
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className="h-auto justify-start rounded-2xl border-slate-200 py-4">
-          <Link to="/ocr-review">
-            <FileText className="mr-2 h-4 w-4" />
-            OCR review ({missingFields.length} pending)
-          </Link>
-        </Button>
-        <Button asChild className="h-auto justify-start rounded-2xl bg-slate-900 py-4 hover:bg-slate-800">
-          <Link to="/readiness">
-            Readiness ({readinessScore.score}%)
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
-        </Button>
-      </section>
+        <section className="h-full overflow-y-auto bg-slate-50/30 p-6 md:p-10">
+          <div className="mx-auto max-w-5xl space-y-10">
+            {/* Header */}
+            <header className="flex flex-col items-center text-center">
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">Welcome back, Ram</h1>
+              <p className="mt-3 text-slate-500 max-w-lg">
+                Your command center for {processName}. Ask the AI to help or jump right into your pending tasks.
+              </p>
+            </header>
 
-      <section className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Preparation progress</h2>
-          <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <ReadinessGauge score={readinessScore.score} />
-            <div className="space-y-3 text-sm text-slate-600">
-              <p>Documents uploaded: {passportDocs.length}</p>
-              <p>Checklist complete: {readinessScore.complete}/{readinessScore.total}</p>
-              <p>Form completion: {formCompletion.completed}/{formCompletion.total}</p>
-              <p>Current status: {readyToProceed ? 'Ready to proceed' : 'Action required'}</p>
+            {/* Search/Action Bar */}
+            <div className="mx-auto w-full max-w-2xl px-4">
+              <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                <CommandInput />
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <Link to="/assistant" className="group flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-blue-200 hover:shadow-md">
+                <div className="mb-4 rounded-full bg-blue-50 p-4 text-blue-600 transition-colors group-hover:bg-blue-100 group-hover:text-blue-700">
+                  <CheckCircle2 className="h-6 w-6" />
+                </div>
+                <span className="font-semibold text-slate-900">Requirements</span>
+                <span className="mt-1 text-xs text-slate-500">{readinessScore.complete}/{readinessScore.total} completed</span>
+              </Link>
+
+              <Link to="/documents" className="group flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-indigo-200 hover:shadow-md">
+                <div className="mb-4 rounded-full bg-indigo-50 p-4 text-indigo-600 transition-colors group-hover:bg-indigo-100 group-hover:text-indigo-700">
+                  <UploadCloud className="h-6 w-6" />
+                </div>
+                <span className="font-semibold text-slate-900">Upload Docs</span>
+                <span className="mt-1 text-xs text-slate-500">{passportDocs.length} files saved</span>
+              </Link>
+
+              <Link to="/ocr-review" className="group flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-amber-200 hover:shadow-md">
+                <div className="mb-4 rounded-full bg-amber-50 p-4 text-amber-600 transition-colors group-hover:bg-amber-100 group-hover:text-amber-700">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <span className="font-semibold text-slate-900">OCR Review</span>
+                <span className="mt-1 text-xs text-slate-500">{missingFields.length} pending review</span>
+              </Link>
+
+              <Link to="/readiness" className="group flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-emerald-200 hover:shadow-md">
+                <div className="mb-4 rounded-full bg-emerald-50 p-4 text-emerald-600 transition-colors group-hover:bg-emerald-100 group-hover:text-emerald-700">
+                  <ArrowRight className="h-6 w-6" />
+                </div>
+                <span className="font-semibold text-slate-900">Readiness</span>
+                <span className="mt-1 text-xs text-slate-500">{readinessScore.score}% complete</span>
+              </Link>
+            </div>
+
+            {/* Split View */}
+            <div className="grid gap-8 pb-12 lg:grid-cols-[1.5fr_1fr]">
+              {/* Left Column (Progress) */}
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+                <h2 className="mb-8 text-xl font-bold text-slate-900">Application Progress</h2>
+                
+                <div className="relative pl-6 border-l-2 border-slate-100 space-y-8 before:absolute before:inset-0 before:-left-[1px]">
+                  {/* Step 1 */}
+                  <div className="relative">
+                    <div className="absolute -left-[35px] top-1 flex h-6 w-6 items-center justify-center rounded-full bg-green-500 text-white ring-4 ring-white">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-900">Process Started</h3>
+                      <p className="mt-1 text-sm text-slate-500">{processName} initialized successfully.</p>
+                    </div>
+                  </div>
+                  
+                  {/* Step 2 */}
+                  <div className="relative">
+                    <div className={cn("absolute -left-[35px] top-1 flex h-6 w-6 items-center justify-center rounded-full ring-4 ring-white", passportDocs.length > 0 ? "bg-green-500 text-white" : "bg-slate-200")}>
+                      {passportDocs.length > 0 && <CheckCircle2 className="h-3.5 w-3.5" />}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-900">Document Upload</h3>
+                      <p className="mt-1 text-sm text-slate-500">{passportDocs.length > 0 ? `${passportDocs.length} documents securely uploaded.` : 'Pending document uploads.'}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Step 3 */}
+                  <div className="relative">
+                    <div className={cn("absolute -left-[35px] top-1 flex h-6 w-6 items-center justify-center rounded-full ring-4 ring-white", missingFields.length === 0 && passportDocs.length > 0 ? "bg-green-500 text-white" : issuesFound > 0 ? "bg-amber-400 text-white" : "bg-slate-200")}>
+                      {missingFields.length === 0 && passportDocs.length > 0 ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-900">Data Extraction & Review</h3>
+                      <p className="mt-1 text-sm text-slate-500">{missingFields.length > 0 ? `${missingFields.length} fields awaiting OCR review and confirmation.` : 'All extracted details have been reviewed.'}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Step 4 */}
+                  <div className="relative">
+                    <div className={cn("absolute -left-[35px] top-1 flex h-6 w-6 items-center justify-center rounded-full ring-4 ring-white", readyToProceed ? "bg-green-500 text-white" : "bg-slate-200")}>
+                      {readyToProceed && <CheckCircle2 className="h-3.5 w-3.5" />}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-900">Final Readiness</h3>
+                      <p className="mt-1 text-sm text-slate-500">{readyToProceed ? "All set! Ready for final submission." : "Checklist items are still pending completion."}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column (Metrics) */}
+              <div className="space-y-4">
+                <h2 className="mb-4 text-xl font-bold text-slate-900">Summary</h2>
+                
+                <StatusCard
+                  label="Documents Uploaded"
+                  value={passportDocs.length}
+                  description="Total files in secure storage"
+                  icon={<FileText className="h-5 w-5 text-slate-500" />}
+                  className="bg-white border-slate-200 hover:border-slate-300 transition-colors"
+                />
+
+                <StatusCard
+                  label="Issues Found"
+                  value={issuesFound}
+                  description={issuesFound > 0 ? "Missing documents or invalid fields" : "Everything looks perfectly clear"}
+                  icon={<AlertTriangle className={cn("h-5 w-5", issuesFound > 0 ? "text-amber-600" : "text-emerald-600")} />}
+                  className={cn("border transition-colors", issuesFound > 0 ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50")}
+                />
+
+                <StatusCard
+                  label="Readiness Score"
+                  value={`${readinessScore.score}%`}
+                  description="Overall application completion"
+                  icon={<CheckCircle2 className={cn("h-5 w-5", readyToProceed ? "text-emerald-600" : "text-blue-600")} />}
+                  className={cn("border transition-colors", readyToProceed ? "border-emerald-200 bg-emerald-50" : "border-blue-200 bg-blue-50")}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        </section>
+      </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          <StatusCard
-            label="Documents uploaded"
-            value={passportDocs.length}
-            description={`${passportDocs.filter((doc) => doc.status === 'analyzed').length} analyzed`}
-            icon={<FileText className="h-4 w-4 text-slate-400" />}
-          />
-          <StatusCard
-            label="Missing items"
-            value={missingRequirements.length}
-            description={nextRequirement?.requirement || 'No missing checklist items'}
-            icon={<AlertTriangle className="h-4 w-4 text-amber-500" />}
-          />
-          <StatusCard label="Issues found" value={issuesFound} description="Fields or validations to review" icon={<AlertTriangle className="h-4 w-4 text-red-500" />} />
-          <StatusCard label="Ready to proceed" value={readyToProceed ? 'Yes' : 'No'} description="Based on current readiness" icon={<CheckCircle2 className="h-4 w-4 text-green-500" />} />
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Checklist from backend</h2>
-        <div className="mt-3 grid gap-2">
-          {requirements.map((item) => (
-            <div key={item.requirement} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 py-2">
-              <div className="text-sm text-slate-700">
-                <p className="font-medium">{item.requirement}</p>
-                <p className="text-xs text-slate-500">{item.notes || 'No notes'}</p>
-              </div>
-              <span className={cn('rounded-full border px-3 py-1 text-xs font-semibold', requirementChipClass(item.status))}>
-                {requirementStatusLabel(item.status)} ({item.readiness_score}%)
-              </span>
-            </div>
-          ))}
-          {requirements.length === 0 ? (
-            <p className="text-sm text-slate-500">No checklist data available yet.</p>
-          ) : null}
-        </div>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-3">
-        <StatusCard
-          label="Authority"
-          value={processInfo?.authority || 'Not available'}
-          description="Issued by backend process catalog"
-        />
-        <StatusCard
-          label="Estimated time"
-          value={processInfo?.estimated_time || 'Not available'}
-          description="Current backend value"
-        />
-        <StatusCard
-          label="Government fee"
-          value={processInfo?.government_fee || 'Not available'}
-          description="Current backend value"
-        />
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        <AlertNotice
-          tone={readyToProceed ? 'success' : 'warning'}
-          title={readyToProceed ? 'All checklist items are satisfied' : 'Checklist still needs updates'}
-          description={readyToProceed ? 'Proceed to final form review before submission.' : `${missingRequirements.length} missing items, ${invalidRequirements.length} invalid items, ${missingFields.length} missing form fields.`}
-        />
-        <AlertNotice
-          tone="info"
-          title="Next recommended action"
-          description={
-            nextRequirement
-              ? `Resolve "${nextRequirement.requirement}" first.`
-              : 'Review OCR extracted fields and confirm details.'
-          }
-        />
-      </section>
+      <button
+        type="button"
+        className="absolute bottom-6 right-6 h-16 w-16 rounded-full bg-slate-900 text-lg font-semibold text-white shadow-[0_18px_36px_rgba(15,23,42,0.28)] transition-transform duration-200 hover:scale-105"
+        aria-label="Open AI Assistant"
+      >
+        AI
+      </button>
     </div>
   );
 }
